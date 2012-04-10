@@ -1,23 +1,25 @@
 
 // (Based on Ethernet's WebClient Example)
 
+#include <String.h>
 #include <SPI.h>
 #include <WiFly.h>
-// #include <aJSON.h>
 
 #include "Credentials.h"
+
+#define BUFF_LEN 80
+#define DEVICE_ID "Elroy"
 
 const int requestInterval = 10000; // delay between requests
 long lastAttemptTime = 0; // last time you connected to the server, in milliseconds
 const int ledPin = 2; // the pin that the LED is attached to
-
-String deviceid = "Elroy"; // Device ID, string of characters
+int status = 0; // status of the device
 
 byte server[] = { 23, 21, 169, 6 }; // Amazon EC2
-// byte server[] = { 10, 0, 10, 1 }; // MacBook on local network
-// byte server[] = { 192, 168, 1, 14 }; // MacBook on Noah's network
+// byte server[] = { 10, 0, 1, 25 }; // MacBook on local network
 
-String bufferString = ""; // string to hold the text from the server
+char bufferString[BUFF_LEN+1]; // string to hold the text from the server
+int bufferLength = 0;
 
 WiFlyClient client(server, 1307);  // WiFly client
 
@@ -47,16 +49,15 @@ void loop() {
       // if there are incoming bytes available
       // from the server, read them and print them:
       char c = client.read();
-      Serial.print(c);
       
       // if you get a newline, clear the line and process the command:
       if (c == '\n') {
-        Serial.println("Processing command.");
         process();
       }
       // add the incoming bytes to the end of line:
       else {
-        bufferString += c;
+        bufferString[bufferLength] = c;
+        bufferLength++;
       }
     }
 
@@ -76,14 +77,15 @@ void loop() {
 
 void connectToServer() {
   
-  Serial.println("connecting...");
+  Serial.println("Connecting...");
 
   if (client.connect()) {
-    Serial.println("connected");
-    // client.print(jsonify("Device ID", deviceid));
-    client.print(deviceid);
-  } else {
-    Serial.println("connection failed");
+    client.print(DEVICE_ID);
+    client.print('\n');
+    Serial.println("Connected.");
+  }
+  else {
+    Serial.println("Connection failed.");
   }
   
   // Note the time of the last connect
@@ -92,30 +94,46 @@ void connectToServer() {
 
 void process() {
   
-  // if the current line ends with HIGH, activate the LED
-  if ( bufferString.startsWith("turnOn")) {
-    Serial.println("Turning LED on.");
+  // if the current line ends with turnOn, activate the light
+  if (strcmp(bufferString, "turnOn") == 0) {
     digitalWrite(ledPin, HIGH);
+    status = 1;
+    Serial.println("On");
   }
     
-  // if the current line ends with LOW, deactivate the LED
-  if ( bufferString.startsWith("turnOff")) {
-    Serial.println("Turning LED off.");
+  // if the current line ends with turnOff, deactivate the light
+  else if (strcmp(bufferString, "turnOff") == 0) {
     digitalWrite(ledPin, LOW);
+    status = 0;
+    Serial.println("Off");
+  }
+  
+  // if the current line ends with "toggle", toggle the light
+  else if (strcmp(bufferString, "toggle") == 0) {
+    if ( status == 1 ) {
+      digitalWrite(ledPin, LOW);
+      status = 0;
+    }
+    else {
+      digitalWrite(ledPin, HIGH);
+      status = 1;
+    }
+    Serial.println("Toggle.");
   }
       
-  // if the current line ends with EXIT, disconnect the server
-  if ( bufferString.startsWith("disconnectClient")) {
-    Serial.println("Disconnecting client.");
+  // if the current line ends with "disconnectClient", disconnect the server
+  else if (strcmp(bufferString, "disconnectClient") == 0) {
     client.stop();
+    Serial.println("Disconnect.");
+  }
+  
+  else {
+    Serial.println("Unrecognized command.");
   }
   
   // Erase the buffer string
-  bufferString = "";
-}
-
-String jsonify (String key, String value) {
-  String result = "";
-  result = "{ " + key + " : " + value + " }";
-  return result;
+  int i;
+  for (i = 0; i < BUFF_LEN; i++)
+    bufferString[i] = '\0';
+  bufferLength = 0;
 }
