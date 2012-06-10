@@ -107,7 +107,7 @@ void process() {
       char* endptr;
       command = command + 3;
       dimLevel = strtol (command, &endptr, 10);
-      if ( dimLevel > 0 && dimLevel < 256 ) {
+      if ( dimLevel > 0 && dimLevel < 256 && deviceStatus == 1 ) {
         analogWrite(ledPin, dimLevel);
       }
       else {

@@ -10,11 +10,9 @@
 const int requestInterval = 10000; // delay between requests
 long lastAttemptTime = 0; // last time you connected to the server, in milliseconds
 
-// byte server[] = { 23, 21, 169, 6 }; // Amazon EC2
-byte server[] = { 10, 0, 1, 2 }; // MacBook on local network
-
-//IPAddress ip(10,0,1,2);
-//int port = 1307;
+// IPAddress ip(23, 21, 169, 6); // Amazon EC2
+IPAddress ip(10,0,1,17); // MacBook on local network
+int port = 1307;
 
 WiFlyClient client;  // WiFly client
 
@@ -41,13 +39,14 @@ void loop() {
     // from the server, read them and print them:
     char c = client.read();
     Serial.print(c);
+  }
 
-    // as long as there are bytes in the serial queue, 
-    // read them and send them out the socket
-    if (Serial.available() > 0) {
-      char inChar = Serial.read();
-      client.print(inChar); 
-    }
+  // as long as there are bytes in the serial queue, 
+  // read them and send them out the socket
+  if (Serial.available() > 0) {
+    char inChar = Serial.read();
+    client.print(inChar);
+    delay(10);
   }
 
   if ( !client.connected() && millis() - lastAttemptTime > requestInterval) {
@@ -61,7 +60,7 @@ void connectToServer() {
 
   //Serial.println("Connecting...");
 
-  if (client.connect()) {
+  if (client.connect(ip, port)) {
     //Serial.println("Connected.");
   }
   else {
@@ -71,6 +70,8 @@ void connectToServer() {
   // Note the time of the last connect
   lastAttemptTime = millis();
 }
+
+
 
 
 
