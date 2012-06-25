@@ -1,6 +1,7 @@
 
-// Arduino code for a SWITCH-enabled lamp.
+// Arduino code for a SWITCH-enabled dimmable lamp.
 // Communicates over serial connection (in practice, an XBee transmitter).
+//
 // Available commands:
 //   turnOn: Turns lamp on
 //   turnOff: Turns lamp off
@@ -9,16 +10,23 @@
 //   getdeviceStatus: Returns deviceStatus of device in JSON
 //
 
+#include <TimerOne.h>  // From http://www.arduino.cc/playground/Code/Timer1
+
 const int AC_LOAD = 3; // the pin that the TRIAC control is attached to
-const int INTERRUPT = 1;
-const int BAUD = 9600;
-int deviceStatus = 0;
-int dimLevel = 250;
+const int INTERRUPT = 1; // the pin that the zero-cross is connected to
+const int BAUD = 9600; // Serial communication speed
+boolean deviceStatus = 0; // Status of the device upon initialization. It starts off.
+int dimLevel = 255; // Dim level upon initialization.
 
 String DEVICE_ID = "Elroy";
-String DEVICE_TYPE = "LED"; // Will have to fix this once the server's updated
+String DEVICE_TYPE = "LED"; // TODO: Should be "Dimmable Lamp". Will have to fix this once the server's updated
 
 String bufferString; // string to hold the text from the server
+
+volatile int i = 0; // Our counter
+volatile boolean zc = 0; // Boolean to let us know whether we have crossed zero
+volatile boolean triac = 0; // Boolean to store whether triac has been triggered
+int freq = 31; // Delay for the frequency of power per step (using 256 steps)
 
 void setup() {
 
@@ -28,6 +36,11 @@ void setup() {
 
   // initialize the LED pin as an output:
   pinMode(AC_LOAD, OUTPUT);
+  
+  // Attach interrupts
+  attachInterrupt(INTERRUPT, zero_cross, RISING);
+  Timer1.initialize(freq);
+  Timer1.attachInterrupt(dim_check, freq);
 
   // Announce thyself
   Serial1.print("{ \"deviceid\" : \"");
@@ -43,11 +56,36 @@ void setup() {
 }
 
 void zero_cross() {
-  int dimtime = (31.5*(261-dimLevel));  // This math might change for different lights
-  delayMicroseconds(dimtime);    // Off cycle
-  digitalWrite(AC_LOAD, HIGH);   // triac firing
-  delayMicroseconds(8.33);         // triac On propogation delay
-  digitalWrite(AC_LOAD, LOW);    // triac Off
+  zc = 1;
+}
+
+void dim_check() {
+  if ( zc == 1 ) {
+    if ( deviceStatus == 1) {
+      if (i >= 255 - dimLevel ) {
+        if ( triac == 1 ) {
+          digitalWrite(AC_LOAD, LOW);
+          triac = 0;
+          i = 0;
+          zc = 0;
+          Serial.print(0);
+        } else {
+          digitalWrite(AC_LOAD, HIGH);
+          triac = 1;
+          Serial.print(1);
+        }
+      } else {
+        i++;
+      }
+    } else {
+      if (i >= 255 - dimLevel ) {
+        i = 0;
+        zc = 0;
+      } else {
+        i++;
+      }
+    }
+  }
 }
 
 void loop() {
@@ -86,14 +124,22 @@ void process(String message) {
     
     if ( recipient == DEVICE_ID ) {
       if (command == "turnOn" ) {
-        attachInterrupt(INTERRUPT, zero_cross, RISING);
         Serial.println("On.");
         deviceStatus = 1;
       }
       else if (command == "turnOff" ) {
-        detachInterrupt(INTERRUPT);
         Serial.println("Off.");
         deviceStatus = 0;
+      }
+      else if (command == "getStatus" ) {
+        Serial.println("Returning status.");
+        Serial1.print("{ \"deviceid\" : \"");
+        Serial1.print(DEVICE_ID);
+        Serial1.print("\" , \"devicestatus\" : ");
+        Serial1.print(deviceStatus);
+        Serial1.print(" , \"dimval\" : ");
+        Serial1.print(dimLevel);
+        Serial1.println(" }");
       }
       else if (command.substring(0,3) == "dim" ) {
         command = command.substring(3);
