@@ -88,6 +88,19 @@ void dim_check() {
   }
 }
 
+void fade(int level, int time) {
+  if (dimLevel > level) {
+    dimLevel--;
+    delay(time);
+    fade(level, time);
+  }
+  else if (dimLevel < level) {
+    dimLevel++;
+    delay(time);
+    fade(level, time);
+  }
+}
+
 void loop() {
   // as long as there are bytes in the serial queue, read them
   while (Serial1.available() > 0) {
@@ -131,6 +144,13 @@ void process(String message) {
         Serial.println("Off.");
         deviceStatus = 0;
       }
+      else if (command == "pulse" ) {
+        // Pulse
+        Serial.println("Pulse.");
+        int current = dimLevel;
+        fade(0, 2);
+        fade(current, 2);
+      }
       else if (command == "getStatus" ) {
         Serial.println("Returning status.");
         Serial1.print("{ \"deviceid\" : \"");
@@ -147,9 +167,9 @@ void process(String message) {
         command.toCharArray(buf, command.length()+1);
         int req = atoi(buf);
         if ( req >= 0 && req <= 255 ) {
-          dimLevel = req;
           Serial.print("Dim to ");
           Serial.println(dimLevel);
+          fade(req, 5);
         }
         else {
           Serial.println("Error: Not a valid dim level.");
