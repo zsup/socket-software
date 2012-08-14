@@ -26,7 +26,7 @@ void setup()
   
   Serial1.print("$$$");
   delay(1000);
-  Serial1.println("set wlan ssid Belkin_Pre-N_449448");
+  Serial1.println("set wlan ssid Party$Central");
   Serial1.println("set ip host 23.21.169.6");
   Serial1.println("set ip remote 1307");
   Serial1.println("set sys autoconnect 1");
