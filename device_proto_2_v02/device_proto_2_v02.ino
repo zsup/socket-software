@@ -19,13 +19,14 @@
 //   dimX: Dim the light to a certain level between 0 and 255
 //   getDeviceStatus: Returns deviceStatus of device in JSON
 //
-// v0.1
-// 08/13/2012
+// v0.2
+// 08/27/2012
 
 // TODO:
-// Set up EEPROM storage of ssid and password.
 // Check the math on the dimmer timing
-
+// Make a legit Wi-Fi library, or find one.
+// Automatic authentication
+// Automatic reset (if it can't find a good network)
 
 // Libraries. Need a timer for dimming, and EEPROM for saving.
 #include <TimerOne.h>  // From http://www.arduino.cc/playground/Code/Timer1
@@ -47,21 +48,38 @@ int freq = 31; // Delay for the frequency of power per step (using 256 steps)
 
 // Device info
 char deviceID[32] = "Elroy"; // Unique ID for the device
-char deviceType[32] = "Light";
+char deviceType[32] = "Light"; // Devicetype; light 
 
 // Network stuff
-char ssid[32] = ""; // TODO: Right number of characters?
-char pword[32] = ""; // TODO: Right number of characters?
-int auth = 0; // TODO: Right number of characters?
+int SSID_LENGTH = 32;
+int PWORD_LENGTH = 32;
+
+char ssid[32] = "";           // TODO: Right number of characters?
+char pword[32] = "";          // TODO: Right number of characters?
+int auth = 0;
+boolean hasInfo = 0;
 
 char server[] = "23.21.169.6";
 int port = 1307;
 char ntp_server[] = "nist1-la.ustiming.org";
 
-volatile boolean hasInfo = false;
-volatile boolean foundServer = false;
+boolean foundServer = 0;
+
+// EEPROM stuff
+const int EEPROM_MIN = 0;
+const int EEPROM_MAX = 511;
+
+const int STATUS_ADDR = 0;
+// const int DIMLEVEL_ADDR = 1;
+int HASINFO_ADDR = 2;
+int SSID_ADDR = 3;
+int PWORD_ADDR = 36;
+int AUTH_ADDR = 69;
 
 String bufferString = ""; // string to hold the text from the server
+                          // TODO: switch to char[256] for clarity
+                          
+String bufferString2 = "";
 
 void setup() {
   // Open the serial gates.
@@ -69,7 +87,7 @@ void setup() {
   Serial1.begin(9600);
   
   // For debugging; wait until Serial is connected to go ahead.
-  for (i = 0; i < 10; i++) {
+  for (int i = 0; i < 10; i++) {
     delay(1000);
     Serial.print("Waiting ");
     Serial.println(i);
@@ -85,27 +103,39 @@ void setup() {
   Timer1.initialize(freq);
   Timer1.attachInterrupt(dim_check, freq);
   
+  // Check the EEPROM for the last status, and flip it.
+  deviceStatus = EEPROM.read(STATUS_ADDR);
   // Turn on the light to its last status.
   if ( deviceStatus == 1 ) {
     digitalWrite(AC_LOAD, HIGH);
+    EEPROM.write(STATUS_ADDR, 0);
+  } else {
+    EEPROM.write(STATUS_ADDR, 1);
   }
   
-  // Wi-Fi setup.
+  // Check the EEPROM for information.
+  hasInfo = EEPROM.read(HASINFO_ADDR);
   
-  // If we don't have a password and SSID, start a server.
-  if ( !hasInfo ) {
-    createServer();
-  }
-  
-  // If we do have a password and SSID, connect.
-  else {
+  // If there's stored info, attempt to connect; otherwise, create an ad hoc server.
+  if (hasInfo) {
+    Serial.println("Found information in EEPROM.");
+    for (int i = 0; i < SSID_LENGTH; i++) {
+      ssid[i] = EEPROM.read(SSID_ADDR + i);
+    }
+    for (int i = 0; i < PWORD_LENGTH; i++) {
+      pword[i] = EEPROM.read(PWORD_ADDR + i);
+    }
+    auth = EEPROM.read(AUTH_ADDR);
     connectToServer();
+  } else {
+    Serial.println("Did not find information in EEPROM.");
+    createServer();
   }
 }
 
 void loop() {
   // as long as there are bytes in the serial queue, read them
-  while (Serial1.available() > 0) {
+  if ( Serial1.available() ) {
     char c = Serial1.read();
     Serial.print(c);
 
@@ -121,40 +151,33 @@ void loop() {
   }
   if ( Serial.available() ) {
     char c = Serial.read();
-    Serial1.print(c);
+    
+    if (c == '\n') {
+      process(bufferString2);
+      bufferString2 = "";
+    }
+    else {
+      bufferString2 += c;
+    }
   }
 }
 
 void zero_cross() {
   zc = 1;
-  Serial.println("zc");
+  i = 0;
+  // Serial.println("zc");
 }
 
 void dim_check() {
-  if ( zc == 1 ) {
-    if ( deviceStatus == 1) {
-      if (i >= 255 - dimLevel ) {
-        if ( triac == 1 ) {
-          digitalWrite(AC_LOAD, LOW);
-          triac = 0;
-          i = 0;
-          zc = 0;
-          Serial.print(0);
-        } else {
-          digitalWrite(AC_LOAD, HIGH);
-          triac = 1;
-          Serial.print(1);
-        }
-      } else {
-        i++;
-      }
+  if ( zc == 1 && deviceStatus == 1 ) {
+    if (i >= 255 - dimLevel ) {
+      digitalWrite(AC_LOAD, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(AC_LOAD, LOW);
+      zc = 0;
+      i = 0;
     } else {
-      if (i >= 255 - dimLevel ) {
-        i = 0;
-        zc = 0;
-      } else {
-        i++;
-      }
+      i++;
     }
   }
 }
@@ -179,13 +202,7 @@ void process(String message) {
   int separator = message.indexOf(',');
   
   if (separator == -1) {
-    if (message == "initialize") {
-      Serial1.println(deviceID);
-      Serial.println("Initialized.");
-    }
-    else {
-      Serial.println("Error; incorrect syntax, no comma found");
-    }
+    Serial.println("Error; incorrect syntax, no comma found");
   }
   else {
     String command = message.substring(separator+1);
@@ -242,7 +259,7 @@ void process(String message) {
         strcpy (ssid, buf);  // TODO: Replace space with $
         Serial.print("Set SSID to ");
         Serial.println(ssid);
-        hasInfo = true;
+        fixSSID();
       }
       else if (command.substring(0,5) == "pword" ) {
         command = command.substring(5);
@@ -266,9 +283,22 @@ void process(String message) {
           Serial.println("Error: Not a valid auth code.");
         }
       }
+      else if (command == "save" ) {
+        // TODO: Need to make sure this doesn't effect the light status
+        clearEEPROM();
+        chartoEEPROM(ssid, SSID_ADDR, SSID_LENGTH);
+        chartoEEPROM(pword, PWORD_ADDR, PWORD_LENGTH);
+        EEPROM.write(AUTH_ADDR, auth);
+        EEPROM.write(HASINFO_ADDR, 1);
+        Serial.println("Saved authentication.");
+      }
       else if (command == "connect" ) {
         Serial.println("Connect.");
         connectToServer();
+      }
+      else if (command == "clear" ) {
+        Serial.println("Clear EEPROM.");
+        clearEEPROM();
       }
     }
     else {
@@ -340,4 +370,41 @@ void connectToServer() {
 void instantiate() {
   Serial1.println();
   Serial1.println(" {\"deviceid\": \"Elroy\" }");
+}
+
+void fixSSID() {
+  for (i = 0; i < SSID_LENGTH; i++) {
+    if (ssid[i] == ' ') {
+      ssid[i] = '$';
+    }
+  }
+}
+
+/***********************
+EEPROM FUNCTIONS
+***********************/
+
+void clearEEPROM () {
+  for (int i=EEPROM_MIN; i <= EEPROM_MAX; i++) {
+    EEPROM.write(i, 0);
+  }
+}
+
+void readEEPROMtoSerial () {
+  for (int i = EEPROM_MIN; i <= EEPROM_MAX; i++) {
+    char c = EEPROM.read(i);
+    Serial.print(c);
+  }
+}
+
+void eepromtoChar (int addr, char c[], int len) {
+  for (int i = 0; i < len; i++) {
+    c[i] = EEPROM.read(addr+i);
+  }
+}
+
+void chartoEEPROM (char c[], int addr, int len) {
+  for (int i = 0; i < len; i++) {
+    EEPROM.write(addr+i, c[i]);
+  }
 }

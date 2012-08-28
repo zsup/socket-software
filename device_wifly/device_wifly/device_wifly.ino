@@ -24,6 +24,8 @@ void setup()
   Serial.begin(9600);
   Serial1.begin(9600);
   
+  Serial.println("Serial initialized.");
+  
   Serial1.print("$$$");
   delay(1000);
   Serial1.println("set wlan ssid Party$Central");
