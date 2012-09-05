@@ -87,11 +87,13 @@ void setup() {
   Serial1.begin(9600);
   
   // For debugging; wait until Serial is connected to go ahead.
+  /*
   for (int i = 0; i < 10; i++) {
     delay(1000);
     Serial.print("Waiting ");
     Serial.println(i);
   }
+  */
   
   Serial.println("Serial initialized.");
   
@@ -169,18 +171,115 @@ void zero_cross() {
 }
 
 void dim_check() {
-  if ( zc == 1 && deviceStatus == 1 ) {
+  if ( zc == 1 ) {
+    if ( deviceStatus == 1) {
+      if (i >= 255 - dimLevel ) {
+        if ( triac == 1 ) {
+          digitalWrite(AC_LOAD, LOW);
+          triac = 0;
+          i = 0;
+          zc = 0;
+          Serial.print(0);
+        } else {
+          digitalWrite(AC_LOAD, HIGH);
+          triac = 1;
+          Serial.print(1);
+        }
+      } else {
+        i++;
+      }
+    } else {
+      if (i >= 255 - dimLevel ) {
+        i = 0;
+        zc = 0;
+      } else {
+        i++;
+      }
+    }
+  }
+}
+
+void dim_check1() {
+  if (deviceStatus == 0 || dimLevel < 10) {
+    digitalWrite(AC_LOAD, LOW);
+  }
+  else if (deviceStatus == 1 && dimLevel > 250) {
+    digitalWrite(AC_LOAD, HIGH);
+  }
+  else if (zc == 1) {
     if (i >= 255 - dimLevel ) {
-      digitalWrite(AC_LOAD, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(AC_LOAD, LOW);
-      zc = 0;
-      i = 0;
+      if (triac == 1) {
+        digitalWrite(AC_LOAD, LOW);
+        triac = 0;
+        i = 0;
+        zc = 0;
+      } else {
+        digitalWrite(AC_LOAD, HIGH);
+        triac = 1;
+      }
     } else {
       i++;
     }
   }
 }
+
+void dim_check2() {
+  if ( zc == 1 ) {
+    if ( deviceStatus == 1) {
+      if (i >= 255 - dimLevel ) {
+        if ( triac == 1 ) {
+          digitalWrite(AC_LOAD, LOW);
+          triac = 0;
+          i = 0;
+          zc = 0;
+          Serial.print(0);
+        } else {
+          digitalWrite(AC_LOAD, HIGH);
+          triac = 1;
+          Serial.print(1);
+        }
+      } else {
+        i++;
+      }
+    } else {
+      digitalWrite(AC_LOAD, LOW);
+      if (i >= 255 - dimLevel ) {
+        i = 0;
+        zc = 0;
+      } else {
+        i++;
+      }
+    }
+  }
+}
+
+void dim_check4() {
+  // When the zero-cross passes, start the counter
+  if (zc == 1) {
+    if (i >- 255 - dimLevel ) {
+      i = 0;
+      zc = 0;
+    } else {
+      i++;
+    }
+  }
+  if (triac == 1) {
+    digitalWrite(AC_LOAD, LOW);
+    triac = 0;
+  }
+  if (deviceStatus == 0 || dimLevel < 10) {
+    digitalWrite(AC_LOAD, LOW);
+  }
+  else if (deviceStatus == 1 && dimLevel > 250) {
+    digitalWrite(AC_LOAD, HIGH);
+  }
+  else if (i >= 255 - dimLevel) {
+    digitalWrite(AC_LOAD, HIGH);
+    triac = 1;
+  }
+}
+    
+    
 
 void fade(int level, int time) {
   if (dimLevel > level) {
@@ -236,7 +335,13 @@ void process(String message) {
         Serial1.print(deviceStatus);
         Serial1.print(" , \"dimval\" : ");
         Serial1.print(dimLevel);
-        Serial1.println(" }");
+        Serial1.print(" , \"ssid\" : \"");
+        Serial1.print(ssid);
+        Serial1.print("\" , \"pword\" : \"");
+        Serial1.print(pword);
+        Serial1.print("\" , \"auth\" : \"");
+        Serial1.print(auth);
+        Serial1.println("\" }");
       }
       else if (command.substring(0,3) == "dim" ) {
         command = command.substring(3);
@@ -245,7 +350,7 @@ void process(String message) {
         int req = atoi(buf);
         if ( req >= 0 && req <= 255 ) {
           Serial.print("Dim to ");
-          Serial.println(dimLevel);
+          Serial.println(req);
           fade(req, 5);
         }
         else {
@@ -363,7 +468,7 @@ void connectToServer() {
   delay(500);
   Serial1.println("reboot");
   Serial.println("Rebooting.");
-  delay(10000);
+  delay(5000);
   instantiate();
 }
 
