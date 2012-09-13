@@ -145,6 +145,9 @@ void setup() {
     Serial.println("Did not find information in EEPROM.");
     createServer();
   }
+  
+  // Instantiate
+  sendStatus();
 }
 
 void loop() {
@@ -356,20 +359,7 @@ void processBuffer(char *message) {
   
   else if (strcmp(command, "getStatus") == 0) {
     Serial.println("Returning status.");
-    Serial1.println();
-    Serial1.print("{ \"deviceid\" : \"");
-    Serial1.print(deviceID);
-    Serial1.print("\" , \"devicestatus\" : ");
-    Serial1.print(deviceStatus);
-    Serial1.print(" , \"dimval\" : ");
-    Serial1.print(dimLevel);
-    Serial1.print(" , \"ssid\" : \"");
-    Serial1.print(ssid);
-    Serial1.print("\" , \"pword\" : \"");
-    Serial1.print(pword);
-    Serial1.print("\" , \"auth\" : \"");
-    Serial1.print(auth);
-    Serial1.println("\" }");
+    sendStatus();
   }
   
   else if (strncmp(command, "ssid", 4) == 0 && strlen(command) <= SSID_LENGTH + 4) {
@@ -477,12 +467,24 @@ void connectToServer() {
   Serial1.println("reboot");
   Serial.println("Rebooting.");
   delay(5000);
-  instantiate();
+  sendStatus();
 }
 
-void instantiate() {
+void sendStatus() {
   Serial1.println();
-  Serial1.println(" {\"deviceid\": \"Elroy\" }");
+  Serial1.print("{ \"deviceid\" : \"");
+  Serial1.print(deviceID);
+  Serial1.print("\" , \"devicestatus\" : ");
+  Serial1.print(deviceStatus);
+  Serial1.print(" , \"dimval\" : ");
+  Serial1.print(dimLevel);
+  Serial1.print(" , \"ssid\" : \"");
+  Serial1.print(ssid);
+  Serial1.print("\" , \"pword\" : \"");
+  Serial1.print(pword);
+  Serial1.print("\" , \"auth\" : \"");
+  Serial1.print(auth);
+  Serial1.println("\" }");
 }
 
 void fixSSID() {
