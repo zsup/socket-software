@@ -20,6 +20,8 @@
 //   toggle: Toggles lamp
 //   dimX: Dim the light to a certain level between 0 and 255
 //   getDeviceStatus: Returns deviceStatus of device in JSON
+//   fXY: Fade to X (0-255) over Y (0-65535) hundredths of a second
+//        X and Y are binary, not text, and Y is a little endian unsigned int
 //
 // Known issues:
 //   - There's a long delay during boot-up
@@ -36,7 +38,7 @@
 // Automatic reset (if it can't find a good network)
 
 // Libraries. Need a timer for dimming, and EEPROM for saving.
-#include <TimerOne.h>  // From http://www.arduino.cc/playground/Code/Timer1
+#include "TimerOne.h"  // From http://www.arduino.cc/playground/Code/Timer1
 #include <EEPROM.h>
 
 // Tokens
@@ -323,7 +325,17 @@ void processBuffer(char *message) {
     return;
   }
   
-  if (strcmp(command, "turnOn") == 0) {
+  if ('f' == command[0] && 4 == commandChars) {
+    byte target = (byte) command[1];
+    unsigned int *duration = (unsigned int *) (command + 2);
+    Serial.print("Fade to ");
+    Serial.print(target);
+    Serial.print(" over ");
+    Serial.print((*duration) / 100.0);
+    Serial.println(" seconds");
+  }
+  
+  else if (strcmp(command, "turnOn") == 0) {
     Serial.println("On");
     deviceStatus = 1;
     light();
