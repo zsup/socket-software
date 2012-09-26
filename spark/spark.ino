@@ -63,13 +63,15 @@
 #define PWORD_ADDR     36
 #define AUTH_ADDR      69
 
+// slightly less than 1/256th of a half period of the alternating current, in microseconds
+// this is 60 Hz, but works for 50 Hz overseas, where the value is 38
+#define TIMER_MICROSECONDS  32L
+
 volatile int deviceStatus = 0; // Status of the device upon initialization. Defaults to off.
 volatile int dimLevel = 255; // Dim level upon initialization. Defaults to max (255).
 
 volatile int i = 0; // Our counter for zero cross events
 volatile boolean intr = 0; // Boolean to let us know whether an interrupt has been activated
-int freq = 32; // Number of milliseconds for each lighting "step". Math is 1/60(Hz)/2*1000*1000/256, rounded down
-// int freq = 38 // 50Hz version for our friends overseas. Math is 1/50(Hz)/2*1000*1000/256, rounded down
 
 // Device info
 char deviceID[32] = "Elroy"; // Unique ID for the device
@@ -100,22 +102,13 @@ void setup() {
   Serial.begin(9600);
   Serial1.begin(9600);
 
-  // For debugging; wait until Serial is connected to go ahead.
-  /*
-  for (int i = 0; i < 10; i++) {
-   delay(1000);
-   Serial.print("Waiting ");
-   Serial.println(i);
-   }
-   */
-
   Serial.println("Serial initialized.");
 
   // initialize the TRIAC driver pin as an output:
   pinMode(TRIAC, OUTPUT);
 
   // Initialize the timer
-  Timer1.initialize(freq);
+  Timer1.initialize(TIMER_MICROSECONDS);
 
   // Check the EEPROM for the last status, and flip it.
   deviceStatus = EEPROM.read(STATUS_ADDR);
@@ -273,6 +266,10 @@ void dim_check() {
   }
 }
 
+void fade(byte target, unsigned int duration) {
+  // TODO
+}
+
 /***********************
  * MESSAGE PARSING
  ***********************/
@@ -318,6 +315,7 @@ void processBuffer(char *message) {
     Serial.print(" over ");
     Serial.print((*duration) / 100.0);
     Serial.println(" seconds");
+    fade(target, *duration);
   }
   
   else if (strcmp(command, "turnOn") == 0) {
