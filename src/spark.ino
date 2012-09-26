@@ -253,21 +253,6 @@ void light() {
   }
 }
 
-// Fade function that turns a light slowly to a given dim level.
-// Currently, a 'time' of 2 is a nice fade.
-void fade(int level, int time) {
-  if (dimLevel > level) {
-    dimLevel--;
-    delay(time);
-    fade(level, time);
-  }
-  else if (dimLevel < level) {
-    dimLevel++;
-    delay(time);
-    fade(level, time);
-  }
-}
-
 // Function called when the zero-cross happens.
 // Resets the counter and activates the dimmer counter.
 void zero_cross() {
