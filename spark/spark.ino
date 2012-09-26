@@ -37,9 +37,10 @@
 // Automatic authentication
 // Automatic reset (if it can't find a good network)
 
-// Libraries. Need a timer for dimming, and EEPROM for saving.
+// Libraries. Need a timer for dimming with PWM, and EEPROM for saving.
 #include "TimerOne.h"  // From http://www.arduino.cc/playground/Code/Timer1
 #include <EEPROM.h>
+#include "Fader.h"
 
 // Tokens
 #define TRIAC          3       // the pin that the TRIAC control is attached to
@@ -96,6 +97,8 @@ char bufferString2[BUFFER_LENGTH]; // char[] to hold text from Serial, for debug
 int buf2Pos = 0;
 char recipient[32];
 char command[32];
+
+Fader fader;
 
 void setup() {
   // Open the serial gates.
@@ -251,6 +254,10 @@ void light() {
 void zero_cross() {
   i = 0;
   Timer1.attachInterrupt(dim_check);
+
+  if (fader.is_fading()) {
+    dimLevel = fader.current_level(millis());
+  }
 }
 
 void dim_check() {
@@ -264,10 +271,6 @@ void dim_check() {
     delayMicroseconds(10);
     digitalWrite(TRIAC, LOW);
   }
-}
-
-void fade(byte target, unsigned int duration) {
-  // TODO
 }
 
 /***********************
@@ -315,7 +318,7 @@ void processBuffer(char *message) {
     Serial.print(" over ");
     Serial.print((*duration) / 100.0);
     Serial.println(" seconds");
-    fade(target, *duration);
+    fader.start(dimLevel, target, *duration * 10L, millis());
   }
   
   else if (strcmp(command, "turnOn") == 0) {
