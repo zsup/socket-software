@@ -9,11 +9,18 @@ Fader::Fader()
   fading = false;
 }
 
-void Fader::start(unsigned char user_start, unsigned char user_target,
+/**
+ * Start fading toward the target over the given duration.
+ * @param device_start_level Device level from which to start fading (0-255)
+ * @param user_target_level  User facing level to fade toward (0-12)
+ * @param duration           Fade duration in milliseconds
+ * @param now                Number of milliseconds representing current time
+ */
+void Fader::start(unsigned char device_start_level, unsigned char user_target_level,
                   unsigned long duration, unsigned long now)
 {
-  this->start_level = user_start;
-  this->target_level = this->mapped_device_level(user_target);
+  start_level = device_start_level;
+  target_level = mapped_device_level(user_target_level);
   started_at = now;
   will_end_at = now + duration;
   level_delta_per_ms = (target_level - start_level) / (float) duration;
@@ -27,7 +34,7 @@ bool Fader::is_fading()
 
 unsigned char Fader::current_level(unsigned long now)
 {
-  if (now > will_end_at)
+  if (now >= will_end_at)
   {
     fading = false;
     return target_level;
