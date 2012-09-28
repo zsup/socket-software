@@ -458,7 +458,7 @@ void sendStatus() {
   Serial1.println();
   Serial1.print("{ \"deviceid\" : \"");
   Serial1.print(deviceID);
-  Serial1.print(" , \"dimval\" : ");
+  Serial1.print("\" , \"dimval\" : ");
   Serial1.print(dimLevel);
   Serial1.print(" , \"ssid\" : \"");
   Serial1.print(ssid);

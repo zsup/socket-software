@@ -9,11 +9,11 @@ Fader::Fader()
   fading = false;
 }
 
-void Fader::start(unsigned char start_level, unsigned char target_level,
+void Fader::start(unsigned char user_start, unsigned char user_target,
                   unsigned long duration, unsigned long now)
 {
-  this->start_level = start_level;
-  this->target_level = this->mapped_device_level(target_level);
+  this->start_level = user_start;
+  this->target_level = this->mapped_device_level(user_target);
   started_at = now;
   will_end_at = now + duration;
   level_delta_per_ms = (target_level - start_level) / (float) duration;
