@@ -299,6 +299,7 @@ void processBuffer(char *message) {
   char *commandPtr = message + separator + 1;
   int commandChars = ender - separator - 1;
   strncpy(command, commandPtr, commandChars);
+  command[commandChars] = '\0';
 
   Serial.println(recipient);
   Serial.println(command);
@@ -311,7 +312,7 @@ void processBuffer(char *message) {
   if (strncmp(command, "fade ", 5) == 0) {
     char *param = strtok(command + 5, " ");
     byte target = (byte) strtol(param, (char **) NULL, 10);
-    param = strtok(NULL, " ");
+    param = strtok(NULL, "\0");
     unsigned long duration = strtoul(param, (char **) NULL, 10);
     Serial.print("Fade to ");
     Serial.print(target);
