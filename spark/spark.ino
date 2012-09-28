@@ -20,7 +20,7 @@
 //   toggle: Toggles lamp
 //   dimX: Dim the light to a certain level between 0 and 255
 //   getDeviceStatus: Returns deviceStatus of device in JSON
-//   fade X Y: Fade to X (0-255) over Y (0-65535) hundredths of a second
+//   fade X Y: Fade to X (0-12) over Y (0-600000) milliseconds
 //
 // Known issues:
 //   - There's a long delay during boot-up
@@ -317,9 +317,9 @@ void processBuffer(char *message) {
     Serial.print("Fade to ");
     Serial.print(target);
     Serial.print(" over ");
-    Serial.print(duration / 100.0);
-    Serial.println(" seconds");
-    fader.start(dimLevel, target, duration * 10L, millis());
+    Serial.print(duration);
+    Serial.println(" milliseconds");
+    fader.start(dimLevel, target, duration, millis());
   }
 
   else if (strcmp(command, "turnOn") == 0) {

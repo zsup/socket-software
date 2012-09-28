@@ -14,8 +14,8 @@ class Fader
 
     /**
      * Start fading toward the target over the given duration.
-     * @param start_level   Level from which to start fading
-     * @param target_level  Level to fade toward
+     * @param start_level   Device level from which to start fading (0-255)
+     * @param target_level  User facing level to fade toward (0-12)
      * @param duration      Fade duration in milliseconds
      * @param now           Number of milliseconds representing current time
      */
@@ -25,6 +25,10 @@ class Fader
     bool is_fading();
 
     unsigned char current_level(unsigned long now);
+  
+  private:
+
+    unsigned char mapped_device_level(unsigned char user_level);
 };
 
 #endif
