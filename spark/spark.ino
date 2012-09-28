@@ -20,8 +20,7 @@
 //   toggle: Toggles lamp
 //   dimX: Dim the light to a certain level between 0 and 255
 //   getDeviceStatus: Returns deviceStatus of device in JSON
-//   fXY: Fade to X (0-255) over Y (0-65535) hundredths of a second
-//        X and Y are binary, not text, and Y is a little endian unsigned int
+//   fade X Y: Fade to X (0-255) over Y (0-65535) hundredths of a second
 //
 // Known issues:
 //   - There's a long delay during boot-up
@@ -38,11 +37,10 @@
 // Automatic reset (if it can't find a good network)
 
 // Libraries. Need a timer for dimming with PWM, and EEPROM for saving.
-#include "TimerOne.h"  // From http://www.arduino.cc/playground/Code/Timer1
 #include <EEPROM.h>
+#include "TimerOne.h"  // From http://www.arduino.cc/playground/Code/Timer1
 #include "Fader.h"
 
-// Tokens
 #define TRIAC          3       // the pin that the TRIAC control is attached to
 #define INTERRUPT      1       // the pin that the zero-cross is connected to
 #define BAUD           9600    // Serial communication speed
@@ -58,7 +56,6 @@
 #define DIM_MAX        255
 
 #define STATUS_ADDR    0
-// #define DIMLEVEL_ADDR 1
 #define HASINFO_ADDR   2
 #define SSID_ADDR      3
 #define PWORD_ADDR     36
@@ -76,7 +73,7 @@ volatile boolean intr = 0; // Boolean to let us know whether an interrupt has be
 
 // Device info
 char deviceID[32] = "Elroy"; // Unique ID for the device
-char deviceType[32] = "Light"; // Devicetype; light 
+char deviceType[32] = "Light"; // Devicetype; light
 
 // Network stuff
 char ssid[SSID_LENGTH] = "";           // TODO: Right number of characters?
@@ -100,27 +97,24 @@ char command[32];
 
 Fader fader;
 
-void setup() {
-  // Open the serial gates.
-  Serial.begin(9600);
-  Serial1.begin(9600);
+void setup()
+{
+  Serial.begin(BAUD);
+  Serial1.begin(BAUD);
 
-  Serial.println("Serial initialized.");
-
-  // initialize the TRIAC driver pin as an output:
   pinMode(TRIAC, OUTPUT);
 
-  // Initialize the timer
   Timer1.initialize(TIMER_MICROSECONDS);
 
   // Check the EEPROM for the last status, and flip it.
   deviceStatus = EEPROM.read(STATUS_ADDR);
-  // Turn on the light to its last status.
-  if ( deviceStatus == 1 ) {
+  if ( deviceStatus == 1 )
+  {
     digitalWrite(TRIAC, HIGH);
     EEPROM.write(STATUS_ADDR, 0);
-  } 
-  else {
+  }
+  else
+  {
     EEPROM.write(STATUS_ADDR, 1);
   }
 
@@ -129,28 +123,32 @@ void setup() {
 
   // If there's stored info, save it in memory. Device will automatically connect.
   // If there's no stored info, create an ad hoc server.
-  if (hasInfo) {
+  if (hasInfo)
+  {
     Serial.println("Found information in EEPROM.");
-    for (int i = 0; i < SSID_LENGTH; i++) {
+    for (int i = 0; i < SSID_LENGTH; i++)
+    {
       ssid[i] = EEPROM.read(SSID_ADDR + i);
     }
-    for (int i = 0; i < PWORD_LENGTH; i++) {
+    for (int i = 0; i < PWORD_LENGTH; i++)
+    {
       pword[i] = EEPROM.read(PWORD_ADDR + i);
     }
     auth = EEPROM.read(AUTH_ADDR);
-  } 
-  else {
+  }
+  else
+  {
     Serial.println("Did not find information in EEPROM.");
     createServer();
   }
-  
-  // Instantiate
+
   sendStatus();
 }
 
-void loop() {
-  // as long as there are bytes in the serial queue, read them
-  if ( Serial1.available() ) {
+void loop()
+{
+  if ( Serial1.available() )
+  {
     char c = Serial1.read();
     Serial.print(c);
 
@@ -208,13 +206,13 @@ void copy(char c[], char f[], int x, int y) {
     Serial.println("ERROR: Can't copy those strings.");
     return;
   }
-  
+
   // Copy characters one by one
   for (int i = x+1; i < y-x; i++) {
     c[i] = f[x+i];
   }
 }
-    
+
 
 /***********************
  * LIGHTING FUNCTIONS
@@ -232,7 +230,7 @@ void light() {
     }
     digitalWrite(TRIAC, LOW);
   }
-  
+
   // If the dim level is at maximum, turn on the light and turn off interrupts
   else if (dimLevel > DIM_MAX - 5) {
     if (intr) {
@@ -241,7 +239,7 @@ void light() {
     }
     digitalWrite(TRIAC, HIGH);
   }
-  
+
   // Otherwise, attach the interrupt and let zero_cross() do the rest
   else {
     attachInterrupt(INTERRUPT, zero_cross, RISING);
@@ -276,14 +274,14 @@ void dim_check() {
 /***********************
  * MESSAGE PARSING
  ***********************/
- 
+
 void processBuffer(char *message) {
 
   // Find the syntax-defining characters
   int beginner = findChar(message, '{');
   int separator = findChar(message, ':');
   int ender = findChar(message, '}');
-  
+
   Serial.println(beginner);
   Serial.println(separator);
   Serial.println(ender);
@@ -293,46 +291,48 @@ void processBuffer(char *message) {
     Serial.println("Error; incorrect syntax");
     return;
   }
-  
+
   char *recipientPtr = message + beginner + 1;
   int recipientChars = separator - beginner - 1;
   strncpy(recipient, recipientPtr, recipientChars);
-  
+
   char *commandPtr = message + separator + 1;
   int commandChars = ender - separator - 1;
   strncpy(command, commandPtr, commandChars);
-  
+
   Serial.println(recipient);
   Serial.println(command);
-  
+
   if (strcmp(recipient, deviceID) != 0) {
     Serial.println("ERROR: Not for me.");
     return;
   }
-  
-  if ('f' == command[0] && 4 == commandChars) {
-    byte target = (byte) command[1];
-    unsigned int *duration = (unsigned int *) (command + 2);
+
+  if (strncmp(command, "fade ", 5) == 0) {
+    char *param = strtok(command + 5, " ");
+    byte target = (byte) strtol(param, (char **) NULL, 10);
+    param = strtok(NULL, " ");
+    unsigned long duration = strtoul(param, (char **) NULL, 10);
     Serial.print("Fade to ");
     Serial.print(target);
     Serial.print(" over ");
-    Serial.print((*duration) / 100.0);
+    Serial.print(duration / 100.0);
     Serial.println(" seconds");
-    fader.start(dimLevel, target, *duration * 10L, millis());
+    fader.start(dimLevel, target, duration * 10L, millis());
   }
-  
+
   else if (strcmp(command, "turnOn") == 0) {
     Serial.println("On");
     deviceStatus = 1;
     light();
   }
-  
+
   else if (strcmp(command, "turnOff") == 0) {
     Serial.println("Off");
     deviceStatus = 0;
     light();
   }
-  
+
   else if (strcmp(command, "pulse") == 0) {
     Serial.println("Pulse");
     int current = dimLevel;
@@ -342,7 +342,7 @@ void processBuffer(char *message) {
     dimLevel = current;
     light();
   }
-  
+
   else if (strncmp(command, "dim", 3) == 0) {
     int d = atoi(command+3);
     if (d < 0 || d > 255) {
@@ -354,32 +354,32 @@ void processBuffer(char *message) {
     Serial.println(d);
     light();
   }
-  
+
   else if (strcmp(command, "getStatus") == 0) {
     Serial.println("Returning status.");
     sendStatus();
   }
-  
+
   else if (strncmp(command, "ssid", 4) == 0 && strlen(command) <= SSID_LENGTH + 4) {
     strcpy(ssid, command+4); // TODO: Ensure that the string isn't longer than the max length for SSIDs
     Serial.print("Changed SSID to ");
     Serial.println(ssid);
     fixSSID();
   }
-  
+
   else if (strncmp(command, "pword", 5) == 0 && strlen(command) <= PWORD_LENGTH + 5) {
     strcpy(pword, command+5); // TODO: Ensure that the string isn't longer than the max length for passwords
                               // TODO: Allow for WEP keys too
     Serial.print("Changed password to ");
     Serial.println(pword);
   }
-  
+
   else if (strncmp(command, "auth", 4) == 0 && strlen(command) == 5) {
     auth = command[4] - '0';
     Serial.print("Changed auth to ");
     Serial.println(auth);
   }
-  
+
   else if (strcmp(command, "save") == 0) {
     clearEEPROM();
     chartoEEPROM(ssid, SSID_ADDR, SSID_LENGTH);
@@ -388,17 +388,17 @@ void processBuffer(char *message) {
     EEPROM.write(HASINFO_ADDR, 1);
     Serial.println("Saved credentials.");
   }
-  
+
   else if (strcmp(command, "connect") == 0) {
     Serial.println("Connect.");
     connectToServer();
   }
-  
+
   else if (strcmp(command, "clear") == 0) {
     Serial.println("Clear EEPROM.");
     clearEEPROM();
   }
-  
+
   else {
     Serial.println("ERROR: Bad message");
   }

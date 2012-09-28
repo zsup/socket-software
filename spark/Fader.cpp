@@ -1,3 +1,6 @@
+#ifndef FADER_cpp
+#define FADER_cpp
+
 #include "Fader.h"
 
 Fader::Fader()
@@ -31,3 +34,5 @@ unsigned char Fader::current_level(unsigned long now)
   unsigned char level_delta = (unsigned char) ((now - started_at) * level_delta_per_ms);
   return start_level + level_delta;
 }
+
+#endif
