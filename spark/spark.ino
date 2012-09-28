@@ -19,7 +19,7 @@
 //   turnOff: Turns lamp off
 //   toggle: Toggles lamp
 //   dimX: Dim the light to a certain level between 0 and 255
-//   getDeviceStatus: Returns deviceStatus of device in JSON
+//   getStatus: Returns status of device in JSON
 //   fade X Y: Fade to X (0-12) over Y (0-600000) milliseconds
 //
 // Known issues:
@@ -65,11 +65,10 @@
 // this is 60 Hz, but works for 50 Hz overseas, where the value is 38
 #define TIMER_MICROSECONDS  32L
 
-volatile int deviceStatus = 0; // Status of the device upon initialization. Defaults to off.
-volatile int dimLevel = 255; // Dim level upon initialization. Defaults to max (255).
+volatile int dimLevel = 0;  // Dim level upon initialization. Defaults to off (0).
+volatile int last = 255;          // Variable to store the last lighting status. Used when turned off.
 
-volatile int i = 0; // Our counter for zero cross events
-volatile boolean intr = 0; // Boolean to let us know whether an interrupt has been activated
+volatile int t = 0; // Our counter for zero cross events
 
 // Device info
 char deviceID[32] = "Elroy"; // Unique ID for the device
@@ -105,12 +104,13 @@ void setup()
   pinMode(TRIAC, OUTPUT);
 
   Timer1.initialize(TIMER_MICROSECONDS);
+  attachInterrupt(INTERRUPT, zero_cross, RISING);
 
   // Check the EEPROM for the last status, and flip it.
-  deviceStatus = EEPROM.read(STATUS_ADDR);
+  int deviceStatus = EEPROM.read(STATUS_ADDR);
   if ( deviceStatus == 1 )
   {
-    digitalWrite(TRIAC, HIGH);
+    dimLevel = 255;
     EEPROM.write(STATUS_ADDR, 0);
   }
   else
@@ -218,40 +218,23 @@ void copy(char c[], char f[], int x, int y) {
  * LIGHTING FUNCTIONS
  ***********************/
 
-// Turn the light to a certain dim level.
-// Ensures that we're not using interrupts unless necessary.
-// In other words, no interrupts when the light is totally on or off.
-void light() {
-  // If the dim level is at minimum, turn off the light and interrupts
-  if (dimLevel == DIM_MIN || deviceStatus == 0) {
-    if (intr) {
-      detachInterrupt(INTERRUPT);
-      intr = 0;
-    }
+// Function called when the zero-cross happens.
+// If the light is either on or off, just write high or low to the triac, respectively.
+// If the light should be dimmed, attach the timer.
+void zero_cross() {
+  t = 0;
+
+  if (dimLevel < DIM_MIN + 10) {
     digitalWrite(TRIAC, LOW);
   }
 
-  // If the dim level is at maximum, turn on the light and turn off interrupts
-  else if (dimLevel > DIM_MAX - 5) {
-    if (intr) {
-      detachInterrupt(INTERRUPT);
-      intr = 0;
-    }
+  else if (dimLevel > DIM_MAX - 10) {
     digitalWrite(TRIAC, HIGH);
   }
 
-  // Otherwise, attach the interrupt and let zero_cross() do the rest
   else {
-    attachInterrupt(INTERRUPT, zero_cross, RISING);
-    intr = 1;
+    Timer1.attachInterrupt(dim_check);
   }
-}
-
-// Function called when the zero-cross happens.
-// Resets the counter and activates the dimmer counter.
-void zero_cross() {
-  i = 0;
-  Timer1.attachInterrupt(dim_check);
 
   if (fader.is_fading()) {
     dimLevel = fader.current_level(millis());
@@ -260,10 +243,10 @@ void zero_cross() {
 
 void dim_check() {
   // First, increment.
-  i++;
+  t++;
 
   // Check to see if the counter has reached the right point. If it has, trip the TRIAC.
-  if ( i >= DIM_MAX - dimLevel ) {
+  if ( t >= DIM_MAX - dimLevel ) {
     Timer1.detachInterrupt();
     digitalWrite(TRIAC, HIGH);
     delayMicroseconds(10);
@@ -324,24 +307,27 @@ void processBuffer(char *message) {
 
   else if (strcmp(command, "turnOn") == 0) {
     Serial.println("On");
-    deviceStatus = 1;
-    light();
+    dimLevel = 255;
   }
 
   else if (strcmp(command, "turnOff") == 0) {
     Serial.println("Off");
-    deviceStatus = 0;
-    light();
+    last = dimLevel;
+    dimLevel = 0;
   }
 
   else if (strcmp(command, "pulse") == 0) {
     Serial.println("Pulse");
-    int current = dimLevel;
-    dimLevel = 0;
-    light();
+    last = dimLevel;
+    // Pulse up if the light is dim; pulse down if the light is bright.
+    if (last > 80) {
+      dimLevel = 0;
+    }
+    else {
+      dimLevel = 255;
+    }
     delay(1000);
-    dimLevel = current;
-    light();
+    dimLevel = last;
   }
 
   else if (strncmp(command, "dim", 3) == 0) {
@@ -353,7 +339,6 @@ void processBuffer(char *message) {
     dimLevel = d;
     Serial.print("Dimming to ");
     Serial.println(d);
-    light();
   }
 
   else if (strcmp(command, "getStatus") == 0) {
@@ -473,8 +458,6 @@ void sendStatus() {
   Serial1.println();
   Serial1.print("{ \"deviceid\" : \"");
   Serial1.print(deviceID);
-  Serial1.print("\" , \"devicestatus\" : ");
-  Serial1.print(deviceStatus);
   Serial1.print(" , \"dimval\" : ");
   Serial1.print(dimLevel);
   Serial1.print(" , \"ssid\" : \"");
@@ -487,7 +470,7 @@ void sendStatus() {
 }
 
 void fixSSID() {
-  for (i = 0; i < SSID_LENGTH; i++) {
+  for (int i = 0; i < SSID_LENGTH; i++) {
     if (ssid[i] == ' ') {
       ssid[i] = '$';
     }
