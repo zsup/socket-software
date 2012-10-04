@@ -367,13 +367,13 @@ void led(char ledval[]) {
   }
 
   // Ok, now set the LED values.
-  redval = ledval[1] * ledval[2];
+  redval = ledval[0] * ledval[1];
   debugSerial.print("Red = ");
   debugSerial.println(redval);
-  greenval = ledval[3] * ledval[4];
+  greenval = ledval[2] * ledval[3];
   debugSerial.print("Green = ");
   debugSerial.println(greenval);
-  blueval = ledval[5] * ledval[6];
+  blueval = ledval[4] * ledval[5];
   debugSerial.println("Blue = ");
   debugSerial.println(blueval);
 }
