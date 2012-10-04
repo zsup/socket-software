@@ -30,6 +30,7 @@
 // 10/4/2012
 
 // TODO:
+// Test this mo-fo.
 // Check the math on the dimmer timing
 // Make a legit Wi-Fi library, or find one.
 // Automatic authentication
@@ -37,6 +38,7 @@
 
 // Libraries. Need a timer for dimming with PWM, and EEPROM for saving.
 #include <EEPROM.h>
+#include <SoftwareSerial.h>
 #include "TimerOne.h"  // From http://www.arduino.cc/playground/Code/Timer1
 #include "Fader.h"
 
@@ -47,6 +49,8 @@
 #define RED            5       // Pin for red LED (PD5, pin 9, Arduino D5, PWM-capable)
 #define BLUE           6       // Pin for blue LED (PD6, pin 10, Arduino D6, PWM-capable)
 #define GREEN          9       // pin for green LED (PB1, pin 13, Arduino D9, PWM-capable)
+#define DEBUG_RX       7       // Pin for software serial RX (PD7, pin 11, Arduino D7)
+#define DEBUG_TX       8       // Pin for software serial TX (PB0, pin 12, Arduino D8)
 
 #define BAUD           9600    // Serial communication speed
 
@@ -61,7 +65,7 @@
 #define DIM_MAX        255
 
 #define LED_MIN        0
-#define LED_MAX        0
+#define LED_MAX        255
 
 // EEPROM addresses for stored information
 #define STATUS_ADDR    0
@@ -74,24 +78,32 @@
 // this is 60 Hz, but works for 50 Hz overseas, where the value is 38
 #define TIMER_MICROSECONDS  32L
 
-volatile int dimLevel = 0;  // Dim level upon initialization. Defaults to off (0).
-volatile int last = 255;          // Variable to store the last lighting status. Used when turned off.
+volatile int dimLevel = 0;                    // Dim level upon initialization. Defaults to off (0).
+volatile int last = 255;                      // Variable to store the last lighting status. Used when turned off.
 
-volatile int t = 0; // Our counter for zero cross events
+volatile int t = 0;                           // Our counter for zero cross events
+
+volatile int buttonVal;                       // Current state of the button
+volatile int buttonLast;                      // State of the button last time around
+volatile long buttonTime;                     // The time that the button was pressed
+
+volatile int redval = 255;                       // Value for the red LED, 0-255
+volatile int blueval = 0;                        // Value for the blue LED, 0-255
+volatile int greenval = 0;                       // Value for the green LED, 0-255             
 
 // Device info
-char deviceID[32] = "Elroy"; // Unique ID for the device
-char deviceType[32] = "Light"; // Devicetype; light
+char deviceID[32] = "Elroy";                  // Unique ID for the device
+char deviceType[32] = "Light";                // Devicetype; light
 
 // Network stuff
-char ssid[SSID_LENGTH] = "";           // TODO: Right number of characters?
-char pword[PWORD_LENGTH] = "";          // TODO: Right number of characters?
+char ssid[SSID_LENGTH] = "";                  // TODO: Right number of characters?
+char pword[PWORD_LENGTH] = "";                // TODO: Right number of characters?
 int auth = 0;
 boolean hasInfo = 0;
 
-char server[] = "23.21.169.6";
-int port = 1307;
-char ntp_server[] = "nist1-la.ustiming.org";
+char server[] = "23.21.169.6";                // Spark IP address. TODO: Use DNS?
+int port = 1307;                              // Spark port. 1307 is TCP, 1308 is SSL
+char ntp_server[] = "nist1-la.ustiming.org";  // Time server
 
 boolean foundServer = 0;
 
@@ -104,22 +116,26 @@ char recipient[32];
 char command[32];
 
 Fader fader;
+SoftwareSerial debugSerial(DEBUG_RX, DEBUG_TX);
 
 void setup()
 {
+  // Open the serial tubes.
   Serial.begin(BAUD);
+  debugSerial.begin(BAUD);
 
-  # Initialize TRIAC
+  // Initialize TRIAC
   pinMode(TRIAC, OUTPUT);
 
-  # Initialize LEDs
+  // Initialize LEDs
   pinMode(RED, OUTPUT);
   pinMode(BLUE, OUTPUT);
   pinMode(GREEN, OUTPUT);
 
-  # Initialize BUTTON
+  // Initialize BUTTON
   pinMode(BUTTON, INPUT);
 
+  // Timers and interrupts, oh my!
   Timer1.initialize(TIMER_MICROSECONDS);
   attachInterrupt(INTERRUPT, zero_cross, RISING);
 
@@ -155,17 +171,19 @@ void setup()
   }
   else
   {
-    // Serial.println("Did not find information in EEPROM.");
+    debugSerial.println("Did not find information in EEPROM.");
     createServer();
   }
-
+  debugSerial.println("Sending status to server.");
   sendStatus();
 }
 
 void loop()
 {
+  // Listen for commands via Serial (Wi-Fi), and process them
   if ( Serial.available() ) {
     char c = Serial.read();
+    debugSerial.print(c);
 
     if (c == '\n') {
       processBuffer(bufferString2);
@@ -179,6 +197,62 @@ void loop()
       buf2Pos++;
     }
   }
+
+  // Listen for commands via debugSerial (local RX/TX), and process them
+  if ( debugSerial.available() ) {
+    char c = debugSerial.read();
+
+    if (c == '\n') {
+      processBuffer(bufferString2);
+      clearBuffer(bufferString2);
+      clearBuffer(recipient);
+      clearBuffer(command);
+      buf2Pos = 0;
+    }
+    else {
+      bufferString2[buf2Pos] = c;
+      buf2Pos++;
+    }
+  }
+
+  // Check to see if the button's been pressed
+  buttonVal = digitalRead(BUTTON);
+
+  // If the button was just depressed, note the time
+  if (buttonVal == LOW && buttonVal != buttonLast) {
+    buttonTime = millis();
+    debugSerial.println("Button depressed");
+  }
+
+  // If the button was released...
+  else if (buttonVal != buttonLast) {
+    debugSerial.println("Button released");
+    // If it was held for more than 3 seconds, reset
+    if (millis() - buttonTime > 3000) {
+      debugSerial.println("Resetting");
+      clearEEPROM();
+      debugSerial.println("EEPROM cleared.");
+      createServer();
+      debugSerial.println("Hosting server");
+    }
+    // Otherwise, change the light state
+    else {
+      if (dimLevel > 40) {
+        dimLevel = 0;
+      }
+      else {
+        dimLevel = 255;
+      }
+    }
+  }
+
+  // Save the current state of the button into a variable for the next time around
+  buttonLast = buttonVal;
+
+  // Write the appropriate LED values
+  analogWrite(RED, redval);
+  analogWrite(GREEN, greenval);
+  analogWrite(BLUE, blueval);
 }
 
 
@@ -211,6 +285,98 @@ void copy(char c[], char f[], int x, int y) {
   }
 }
 
+/***********************
+ * LED FUNCTIONS
+ ***********************/
+
+void led(char ledval[]) {
+  for (int i = 0; i < 6; i++) {
+    // TODO: This code sucks. Fix it!
+    switch (ledval[i]) {
+      case '0':
+        ledval[i] = 0x0;
+        break;
+      case '1':
+        ledval[i] = 0x1;
+        break;
+      case '2':
+        ledval[i] = 0x2;
+        break;
+      case '3':
+        ledval[i] = 0x3;
+        break;
+      case '4':
+        ledval[i] = 0x4;
+        break;
+      case '5':
+        ledval[i] = 0x5;
+        break;
+      case '6':
+        ledval[i] = 0x6;
+        break;
+      case '7':
+        ledval[i] = 0x7;
+        break;
+      case '8':
+        ledval[i] = 0x8;
+        break;
+      case '9':
+        ledval[i] = 0x9;
+        break;
+      case 'A':
+        ledval[i] = 0xA;
+        break;
+      case 'a':
+        ledval[i] = 0xA;
+        break;
+      case 'B':
+        ledval[i] = 0xB;
+        break;
+      case 'b':
+        ledval[i] = 0xB;
+        break;
+      case 'C':
+        ledval[i] = 0xC;
+        break;
+      case 'c':
+        ledval[i] = 0xC;
+        break;
+      case 'D':
+        ledval[i] = 0xD;
+        break;
+      case 'd':
+        ledval[i] = 0xD;
+        break;
+      case 'E':
+        ledval[i] = 0xE;
+        break;
+      case 'e':
+        ledval[i] = 0xE;
+        break;
+      case 'F':
+        ledval[i] = 0xF;
+        break;
+      case 'f':
+        ledval[i] = 0xF;
+        break;
+      default:
+        debugSerial.println("ERROR: Bad LED level!");
+        ledval[i] = 0x0;
+        break;
+    }
+  }
+
+  // Ok, now set the LED values.
+  redval = ledval[1] * ledval[2];
+  debugSerial.print("Red = ");
+  debugSerial.println(redval);
+  greenval = ledval[3] * ledval[4];
+  debugSerial.print("Green = ");
+  debugSerial.println(greenval);
+  blueval = ledval[5] * ledval[6];
+  debugSerial.println("Blue = ");
+  debugSerial.println(blueval);
+}
 
 /***********************
  * LIGHTING FUNCTIONS
@@ -263,13 +429,13 @@ void processBuffer(char *message) {
   int separator = findChar(message, ':');
   int ender = findChar(message, '}');
 
-  // Serial.println(beginner);
-  // Serial.println(separator);
-  // Serial.println(ender);
+  debugSerial.println(beginner);
+  debugSerial.println(separator);
+  debugSerial.println(ender);
 
   // If the syntax-defining characters are not there, return an error
   if (beginner == -1 || separator == -1 || ender == -1 || ender - separator < 1 || separator - beginner < 1) {
-    // Serial.println("Error; incorrect syntax");
+    debugSerial.println("Error; incorrect syntax");
     return;
   }
 
@@ -282,11 +448,11 @@ void processBuffer(char *message) {
   strncpy(command, commandPtr, commandChars);
   command[commandChars] = '\0';
 
-  // Serial.println(recipient);
-  // Serial.println(command);
+  debugSerial.println(recipient);
+  debugSerial.println(command);
 
   if (strcmp(recipient, deviceID) != 0) {
-    // Serial.println("ERROR: Not for me.");
+    debugSerial.println("ERROR: Not for me.");
     return;
   }
 
@@ -295,27 +461,32 @@ void processBuffer(char *message) {
     byte target = (byte) strtol(param, (char **) NULL, 10);
     param = strtok(NULL, "\0");
     unsigned long duration = strtoul(param, (char **) NULL, 10);
-    // Serial.print("Fade to ");
-    // Serial.print(target);
-    // Serial.print(" over ");
-    // Serial.print(duration);
-    // Serial.println(" milliseconds");
+    debugSerial.print("Fade to ");
+    debugSerial.print(target);
+    debugSerial.print(" over ");
+    debugSerial.print(duration);
+    debugSerial.println(" milliseconds");
     fader.start(dimLevel, target, duration, millis());
   }
 
+  else if (strncmp(command, "led", 3) == 0 && strlen(command) == 9) {
+    led(command+3);
+    debugSerial.print("Changed LED color");
+  }
+
   else if (strcmp(command, "turnOn") == 0) {
-    // Serial.println("On");
+    debugSerial.println("On");
     dimLevel = 255;
   }
 
   else if (strcmp(command, "turnOff") == 0) {
-    // Serial.println("Off");
+    debugSerial.println("Off");
     last = dimLevel;
     dimLevel = 0;
   }
 
   else if (strcmp(command, "pulse") == 0) {
-    // Serial.println("Pulse");
+    debugSerial.println("Pulse");
     last = dimLevel;
     // Pulse up if the light is dim; pulse down if the light is bright.
     if (last > 80) {
@@ -331,37 +502,37 @@ void processBuffer(char *message) {
   else if (strncmp(command, "dim", 3) == 0) {
     int d = atoi(command+3);
     if (d < 0 || d > 255) {
-      // Serial.println("ERROR: Bad dim level.");
+      debugSerial.println("ERROR: Bad dim level.");
       return;
     }
     dimLevel = d;
-    // Serial.print("Dimming to ");
-    // Serial.println(d);
+    debugSerial.print("Dimming to ");
+    debugSerial.println(d);
   }
 
   else if (strcmp(command, "getStatus") == 0) {
-    // Serial.println("Returning status.");
+    debugSerial.println("Returning status.");
     sendStatus();
   }
 
   else if (strncmp(command, "ssid", 4) == 0 && strlen(command) <= SSID_LENGTH + 4) {
     strcpy(ssid, command+4); // TODO: Ensure that the string isn't longer than the max length for SSIDs
-    // Serial.print("Changed SSID to ");
-    // Serial.println(ssid);
+    debugSerial.print("Changed SSID to ");
+    debugSerial.println(ssid);
     fixSSID();
   }
 
   else if (strncmp(command, "pword", 5) == 0 && strlen(command) <= PWORD_LENGTH + 5) {
     strcpy(pword, command+5); // TODO: Ensure that the string isn't longer than the max length for passwords
                               // TODO: Allow for WEP keys too
-    // Serial.print("Changed password to ");
-    // Serial.println(pword);
+    debugSerial.print("Changed password to ");
+    debugSerial.println(pword);
   }
 
   else if (strncmp(command, "auth", 4) == 0 && strlen(command) == 5) {
     auth = command[4] - '0';
-    // Serial.print("Changed auth to ");
-    // Serial.println(auth);
+    debugSerial.print("Changed auth to ");
+    debugSerial.println(auth);
   }
 
   else if (strcmp(command, "save") == 0) {
@@ -370,21 +541,21 @@ void processBuffer(char *message) {
     chartoEEPROM(pword, PWORD_ADDR, PWORD_LENGTH);
     EEPROM.write(AUTH_ADDR, auth);
     EEPROM.write(HASINFO_ADDR, 1);
-    // Serial.println("Saved credentials.");
+    debugSerial.println("Saved credentials.");
   }
 
   else if (strcmp(command, "connect") == 0) {
-    // Serial.println("Connect.");
+    debugSerial.println("Connect.");
     connectToServer();
   }
 
   else if (strcmp(command, "clear") == 0) {
-    // Serial.println("Clear EEPROM.");
+    debugSerial.println("Clear EEPROM.");
     clearEEPROM();
   }
 
   else {
-    // Serial.println("ERROR: Bad message");
+    debugSerial.println("ERROR: Bad message");
   }
 }
 
@@ -393,7 +564,7 @@ void processBuffer(char *message) {
  ***********************/
 
 void createServer() {
-  // Serial.println("Starting server.");
+  debugSerial.println("Starting server.");
   Serial.print("$$$");
   delay(1000);
   Serial.print("set wlan ssid SWITCH_");
@@ -416,7 +587,7 @@ void createServer() {
 
 void connectToServer() {
   // Connect to our server.
-  // Serial.println("Attempting to connect");
+  debugSerial.println("Attempting to connect");
   Serial.print("$$$");
   delay(1000);
   Serial.print("set wlan ssid ");
@@ -447,7 +618,7 @@ void connectToServer() {
   Serial.println("save");
   delay(500);
   Serial.println("reboot");
-  // Serial.println("Rebooting.");
+  debugSerial.println("Rebooting.");
   delay(5000);
   sendStatus();
 }
