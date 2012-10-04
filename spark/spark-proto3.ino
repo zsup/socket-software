@@ -40,12 +40,14 @@
 #include "TimerOne.h"  // From http://www.arduino.cc/playground/Code/Timer1
 #include "Fader.h"
 
-#define RED            5
-#define BLUE           6
-#define GREEN          9
-#define BUTTON         4
-#define TRIAC          3       // the pin that the TRIAC control is attached to
-#define INTERRUPT      1       // the pin that the zero-cross is connected to
+// Pin definitions. This is where everything is plugged in
+#define INTERRUPT      0       // Zero-cross interrupt (PD2, pin 32, Arduino D2, interrupt 0)
+#define TRIAC          3       // TRIAC control pin (PD3, pin 1, Arduino D3)
+#define BUTTON         4       // Button pin, with pull-up resistor (PD4, pin 2, Arduino D4)
+#define RED            5       // Pin for red LED (PD5, pin 9, Arduino D5, PWM-capable)
+#define BLUE           6       // Pin for blue LED (PD6, pin 10, Arduino D6, PWM-capable)
+#define GREEN          9       // pin for green LED (PB1, pin 13, Arduino D9, PWM-capable)
+
 #define BAUD           9600    // Serial communication speed
 
 #define SSID_LENGTH    32
@@ -58,6 +60,10 @@
 #define DIM_MIN        0
 #define DIM_MAX        255
 
+#define LED_MIN        0
+#define LED_MAX        0
+
+// EEPROM addresses for stored information
 #define STATUS_ADDR    0
 #define HASINFO_ADDR   2
 #define SSID_ADDR      3
