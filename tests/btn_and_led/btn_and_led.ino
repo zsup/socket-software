@@ -1,8 +1,7 @@
 /*
-  Blink
-  Turns on an LED on for one second, then off for one second, repeatedly.
- 
-  This example code is in the public domain.
+  Button and LED test for the Spark prototype.
+  
+  When the button is pressed, the LED should turn on white. When the button is not pressed, the LED should be off.
  */
  
 // Pin 13 has an LED connected on most Arduino boards.
@@ -25,12 +24,12 @@ void setup() {
 
 void loop() {
   if (digitalRead(button) == LOW) {
-    digitalWrite(led1, HIGH);
-    digitalWrite(led2, HIGH);
-    digitalWrite(led3, HIGH);
-  } else {
     digitalWrite(led1, LOW);
     digitalWrite(led2, LOW);
     digitalWrite(led3, LOW);
+  } else {
+    digitalWrite(led1, HIGH);
+    digitalWrite(led2, HIGH);
+    digitalWrite(led3, HIGH);
   }
 }

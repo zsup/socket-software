@@ -87,9 +87,9 @@ volatile int buttonVal;                       // Current state of the button
 volatile int buttonLast;                      // State of the button last time around
 volatile long buttonTime;                     // The time that the button was pressed
 
-volatile int redval = 255;                       // Value for the red LED, 0-255
-volatile int blueval = 0;                        // Value for the blue LED, 0-255
-volatile int greenval = 0;                       // Value for the green LED, 0-255             
+volatile int redval = 0;                       // Value for the red LED, 0-255
+volatile int blueval = 255;                        // Value for the blue LED, 0-255
+volatile int greenval = 255;                       // Value for the green LED, 0-255             
 
 // Device info
 char deviceID[32] = "Elroy";                  // Unique ID for the device

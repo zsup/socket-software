@@ -1,0 +1,15 @@
+spark.name=Spark
+spark.upload.protocol=arduino
+spark.upload.maximum_size=32256
+spark.upload.speed=115200
+spark.bootloader.low_fuses=0xfd
+spark.bootloader.high_fuses=0xd9
+spark.bootloader.extended_fuses=0x06
+spark.bootloader.path=optiboot
+spark.bootloader.file=optiboot_atmega328.hex
+spark.bootloader.unlock_bits=0x3F
+spark.bootloader.lock_bits=0x0F
+spark.build.mcu=atmega328p
+spark.build.f_cpu=8000000L
+spark.build.core=arduino
+spark.build.variant=standard
