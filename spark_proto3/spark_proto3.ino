@@ -85,14 +85,10 @@ volatile int t = 0;                           // Our counter for zero cross even
 
 volatile int buttonVal;                       // Current state of the button
 volatile int buttonLast;                      // State of the button last time around
-volatile long buttonTime;                     // The time that the button was pressed
-
-volatile int redval = 0;                       // Value for the red LED, 0-255
-volatile int blueval = 255;                        // Value for the blue LED, 0-255
-volatile int greenval = 255;                       // Value for the green LED, 0-255             
+volatile long buttonTime;                     // The time that the button was pressed         
 
 // Device info
-char deviceID[32] = "Elroy";                  // Unique ID for the device
+char deviceID[32] = "Jane";                  // Unique ID for the device
 char deviceType[32] = "Light";                // Devicetype; light
 
 // Network stuff
@@ -123,6 +119,9 @@ void setup()
   // Open the serial tubes.
   Serial.begin(BAUD);
   debugSerial.begin(BAUD);
+  
+  // Turn on interrupts
+  sei();
 
   // Initialize TRIAC
   pinMode(TRIAC, OUTPUT);
@@ -131,6 +130,7 @@ void setup()
   pinMode(RED, OUTPUT);
   pinMode(BLUE, OUTPUT);
   pinMode(GREEN, OUTPUT);
+  set_leds(255, 0, 0);
 
   // Initialize BUTTON
   pinMode(BUTTON, INPUT);
@@ -168,14 +168,14 @@ void setup()
       pword[i] = EEPROM.read(PWORD_ADDR + i);
     }
     auth = EEPROM.read(AUTH_ADDR);
+    debugSerial.println("Sending status to server.");
+    sendStatus();
   }
   else
   {
     debugSerial.println("Did not find information in EEPROM.");
     createServer();
   }
-  debugSerial.println("Sending status to server.");
-  sendStatus();
 }
 
 void loop()
@@ -223,36 +223,27 @@ void loop()
     buttonTime = millis();
     debugSerial.println("Button depressed");
   }
-
-  // If the button was released...
-  else if (buttonVal != buttonLast) {
-    debugSerial.println("Button released");
-    // If it was held for more than 3 seconds, reset
-    if (millis() - buttonTime > 3000) {
-      debugSerial.println("Resetting");
-      clearEEPROM();
-      debugSerial.println("EEPROM cleared.");
-      createServer();
-      debugSerial.println("Hosting server");
+  
+  else if (buttonVal == LOW && millis() - buttonTime > 3000) {
+    set_leds(255, 255, 255);
+    debugSerial.println("Resetting");
+    clearEEPROM();
+    debugSerial.println("EEPROM cleared.");
+    createServer();
+    debugSerial.println("Hosting server");
+  }
+  
+  else if (buttonVal != buttonLast && millis() - buttonTime <= 3000) {
+    if (dimLevel > 40) {
+      dimLevel = 0;
     }
-    // Otherwise, change the light state
     else {
-      if (dimLevel > 40) {
-        dimLevel = 0;
-      }
-      else {
-        dimLevel = 255;
-      }
+      dimLevel = 255;
     }
   }
-
+  
   // Save the current state of the button into a variable for the next time around
   buttonLast = buttonVal;
-
-  // Write the appropriate LED values
-  analogWrite(RED, redval);
-  analogWrite(GREEN, greenval);
-  analogWrite(BLUE, blueval);
 }
 
 
@@ -367,15 +358,17 @@ void led(char ledval[]) {
   }
 
   // Ok, now set the LED values.
-  redval = LED_MAX - ledval[0] * ledval[1];
-  debugSerial.print("Red = ");
-  debugSerial.println(redval);
-  greenval = LED_MAX - ledval[2] * ledval[3];
-  debugSerial.print("Green = ");
-  debugSerial.println(greenval);
-  blueval = LED_MAX - ledval[4] * ledval[5];
-  debugSerial.println("Blue = ");
-  debugSerial.println(blueval);
+  int redval = ledval[0] * ledval[1];
+  int greenval = ledval[2] * ledval[3];
+  int blueval = ledval[4] * ledval[5];
+  
+  set_leds(redval, greenval, blueval);
+}
+
+void set_leds(int red, int green, int blue) {
+  analogWrite(RED, LED_MAX - red);
+  analogWrite(GREEN, LED_MAX - green);
+  analogWrite(BLUE, LED_MAX - blue);
 }
 
 /***********************
@@ -567,22 +560,23 @@ void createServer() {
   debugSerial.println("Starting server.");
   Serial.print("$$$");
   delay(1000);
-  Serial.print("set wlan ssid SWITCH_");
+  Serial.print("set wlan ssid Spark_");
   Serial.println(deviceID);
-  delay(500);
+  delay(1000);
   Serial.println("set wlan channel 1");
-  delay(500);
+  delay(1000);
   Serial.println("set wlan join 4");
-  delay(500);
+  delay(1000);
   Serial.println("set ip address 169.254.1.1");
-  delay(500);
+  delay(1000);
   Serial.println("set ip netmask 255.255.0.0");
-  delay(500);
+  delay(1000);
   Serial.println("set ip dhcp 0");
-  delay(500);
+  delay(1000);
   Serial.println("save");
-  delay(500);
+  delay(1000);
   Serial.println("reboot");
+  set_leds(255, 0, 0);
 }
 
 void connectToServer() {
@@ -592,31 +586,31 @@ void connectToServer() {
   delay(1000);
   Serial.print("set wlan ssid ");
   Serial.println(ssid);
-  delay(500);
+  delay(1000);
   Serial.print("set wlan phrase ");
   Serial.println(pword);
-  delay(500);
+  delay(1000);
   Serial.print("set wlan auth ");
   Serial.println(auth);
-  delay(500);
+  delay(1000);
   Serial.println("set wlan channel 0");
-  delay(500);
+  delay(1000);
   Serial.println("set wlan join 1");
-  delay(500);
+  delay(1000);
   Serial.println("set ip dhcp 1");
-  delay(500);
+  delay(1000);
   Serial.print("set ip host ");
   Serial.println(server);
-  delay(500);
+  delay(1000);
   Serial.print("set ip remote ");
   Serial.println(port);
-  delay(500);
+  delay(1000);
   Serial.println("set sys autoconn 1");
-  delay(500);
+  delay(1000);
   Serial.println("open");
-  delay(500);
+  delay(1000);
   Serial.println("save");
-  delay(500);
+  delay(1000);
   Serial.println("reboot");
   debugSerial.println("Rebooting.");
   delay(5000);

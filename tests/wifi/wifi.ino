@@ -26,12 +26,11 @@ void setup()
 void loop() {
   if ( debugSerial.available() ) {
     char c = debugSerial.read();
-    if (c == 20) {
-      debugSerial.println("Testing communications with Wi-Fi.");
+    if (c == 0x09) {
+      test_wifi();
     }
-    c++;
     debugSerial.print(c);
-    
+    Serial.print(c);
   }
     
   if ( Serial.available() ) {
@@ -39,11 +38,11 @@ void loop() {
     debugSerial.print(c);
   }
 }
-/*
+
 void test_wifi() {
   debugSerial.println("Testing communications with Wi-Fi.");
   Serial.print("$$$");
   delay(1000);
   Serial.println("get everything");
 }
-*/
+
