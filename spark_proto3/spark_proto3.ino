@@ -85,7 +85,7 @@ volatile int t = 0;                           // Our counter for zero cross even
 
 volatile int buttonVal;                       // Current state of the button
 volatile int buttonLast;                      // State of the button last time around
-volatile long buttonTime;                     // The time that the button was pressed         
+volatile long buttonTime;                     // The time that the button was pressed
 
 // Device info
 char deviceID[32] = "Jane";                  // Unique ID for the device
@@ -119,7 +119,7 @@ void setup()
   // Open the serial tubes.
   Serial.begin(BAUD);
   debugSerial.begin(BAUD);
-  
+
   // Turn on interrupts
   sei();
 
@@ -223,7 +223,7 @@ void loop()
     buttonTime = millis();
     debugSerial.println("Button depressed");
   }
-  
+
   else if (buttonVal == LOW && millis() - buttonTime > 3000) {
     set_leds(255, 255, 255);
     debugSerial.println("Resetting");
@@ -232,7 +232,7 @@ void loop()
     createServer();
     debugSerial.println("Hosting server");
   }
-  
+
   else if (buttonVal != buttonLast && millis() - buttonTime <= 3000) {
     if (dimLevel > 40) {
       dimLevel = 0;
@@ -241,7 +241,7 @@ void loop()
       dimLevel = 255;
     }
   }
-  
+
   // Save the current state of the button into a variable for the next time around
   buttonLast = buttonVal;
 }
@@ -281,91 +281,22 @@ void copy(char c[], char f[], int x, int y) {
  ***********************/
 
 void led(char ledval[]) {
-  for (int i = 0; i < 6; i++) {
-    // TODO: This code sucks. Fix it!
-    switch (ledval[i]) {
-      case '0':
-        ledval[i] = 0x0;
-        break;
-      case '1':
-        ledval[i] = 0x1;
-        break;
-      case '2':
-        ledval[i] = 0x2;
-        break;
-      case '3':
-        ledval[i] = 0x3;
-        break;
-      case '4':
-        ledval[i] = 0x4;
-        break;
-      case '5':
-        ledval[i] = 0x5;
-        break;
-      case '6':
-        ledval[i] = 0x6;
-        break;
-      case '7':
-        ledval[i] = 0x7;
-        break;
-      case '8':
-        ledval[i] = 0x8;
-        break;
-      case '9':
-        ledval[i] = 0x9;
-        break;
-      case 'A':
-        ledval[i] = 0xA;
-        break;
-      case 'a':
-        ledval[i] = 0xA;
-        break;
-      case 'B':
-        ledval[i] = 0xB;
-        break;
-      case 'b':
-        ledval[i] = 0xB;
-        break;
-      case 'C':
-        ledval[i] = 0xC;
-        break;
-      case 'c':
-        ledval[i] = 0xC;
-        break;
-      case 'D':
-        ledval[i] = 0xD;
-        break;
-      case 'd':
-        ledval[i] = 0xD;
-        break;
-      case 'E':
-        ledval[i] = 0xE;
-        break;
-      case 'e':
-        ledval[i] = 0xE;
-        break;
-      case 'F':
-        ledval[i] = 0xF;
-        break;
-      case 'f':
-        ledval[i] = 0xF;
-        break;
-      default:
-        debugSerial.println("ERROR: Bad LED level!");
-        ledval[i] = 0x0;
-        break;
-    }
-  }
+  char bytestr[3];
+  bytestr[2] = '\0';
 
-  // Ok, now set the LED values.
-  int redval = ledval[0] * ledval[1];
-  int greenval = ledval[2] * ledval[3];
-  int blueval = ledval[4] * ledval[5];
-  
+  strncpy(bytestr, ledval, 2);
+  byte redval = (byte) strtol(bytestr, (char **) NULL, 16);
+
+  strncpy(bytestr, ledval + 2, 2);
+  byte greenval = (byte) strtol(bytestr, (char **) NULL, 16);
+
+  strncpy(bytestr, ledval + 4, 2);
+  byte blueval = (byte) strtol(bytestr, (char **) NULL, 16);
+
   set_leds(redval, greenval, blueval);
 }
 
-void set_leds(int red, int green, int blue) {
+void set_leds(byte red, byte green, byte blue) {
   analogWrite(RED, LED_MAX - red);
   analogWrite(GREEN, LED_MAX - green);
   analogWrite(BLUE, LED_MAX - blue);
@@ -679,4 +610,4 @@ void clearBuffer(char *message) {
     message[i] = '\0';
   }
 }
-  
+
