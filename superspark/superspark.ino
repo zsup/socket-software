@@ -403,9 +403,12 @@ void sendStatus() {
   Serial1.println();
   Serial1.print("{ \"deviceid\" : \"");
   Serial1.print(deviceID);
-  // TODO: Make this read correctly
-  // Serial1.print("\" , \"state\" : ");
-  // Serial1.print(c);
+  Serial1.print("\" , \"devicestatus\" : ");
+  for (int i = 0; i < COMPONENTS; i++) {
+    Serial1.print(c[i]);
+  }
+  Serial1.print(" , \"devicetype\" : \"");
+  Serial1.print(deviceType);
   Serial1.print("\" , \"ssid\" : \"");
   Serial1.print(ssid);
   Serial1.print("\" , \"pword\" : \"");
