@@ -403,11 +403,11 @@ void sendStatus() {
   Serial1.println();
   Serial1.print("{ \"deviceid\" : \"");
   Serial1.print(deviceID);
-  Serial1.print("\" , \"devicestatus\" : ");
+  Serial1.print("\" , \"devicestatus\" : \"");
   for (int i = 0; i < COMPONENTS; i++) {
     Serial1.print(c[i]);
   }
-  Serial1.print(" , \"devicetype\" : \"");
+  Serial1.print("\" , \"devicetype\" : \"");
   Serial1.print(deviceType);
   Serial1.print("\" , \"ssid\" : \"");
   Serial1.print(ssid);
