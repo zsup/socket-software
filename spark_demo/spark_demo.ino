@@ -88,7 +88,7 @@ volatile int buttonLast;                      // State of the button last time a
 volatile long buttonTime;                     // The time that the button was pressed         
 
 // Device info
-char deviceID[32] = "Jane";                   // Unique ID for the device
+char deviceID[32] = "Elroy";                   // Unique ID for the device
 char deviceType[32] = "Light";                // Devicetype; light
 
 // Network stuff
@@ -97,7 +97,7 @@ char pword[PWORD_LENGTH] = "";                // TODO: Right number of character
 int auth = 0;
 boolean hasInfo = 0;
 
-char server[] = "23.21.169.6";                // Spark IP address. TODO: Use DNS?
+char server[] = "10.0.1.32";                  // Spark IP address. TODO: Use DNS?
 int port = 1307;                              // Spark port. 1307 is TCP, 1308 is SSL
 char ntp_server[] = "nist1-la.ustiming.org";  // Time server
 
