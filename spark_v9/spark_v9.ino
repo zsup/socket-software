@@ -4,16 +4,15 @@
 // Copyright Hex Labs, Inc. 2012
 // All rights reserved.
 //
-// Works with Prototype v9 (HVB/LVB design)
+// Works with Prototype #3 (first PCB proto)
 //
 // Socket has the following components:
 //   ATmega328p, 32 pins
 //   Roving Networks RN-171 Wi-Fi module
-//   TRIAC leading edge dimmer
-//   Zero-cross detector
-//   3.3V, 300mA power supply (Power Integrations LNK306)
+//   TRIAC leading edge dimmer circuit
+//     (based on the InMojo Digital AC Dimmer)
+//   Battery-powered components
 //   An RGB LED for status
-//   A button
 //
 // Available commands:
 //   turnOn: Turns lamp on
@@ -27,8 +26,8 @@
 // Known issues:
 //   - This hasn't been tested. Does that count as an issue?
 //
-// v0.0.5
-// 1/11/2012
+// v0.0.4
+// 10/4/2012
 
 // TODO:
 // Test this mo-fo.

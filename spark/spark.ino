@@ -71,7 +71,7 @@ volatile int last = 255;          // Variable to store the last lighting status.
 volatile int t = 0; // Our counter for zero cross events
 
 // Device info
-char deviceID[32] = "Elroy"; // Unique ID for the device
+char deviceID[32] = "Astro"; // Unique ID for the device
 char deviceType[32] = "Light"; // Devicetype; light
 
 // Network stuff

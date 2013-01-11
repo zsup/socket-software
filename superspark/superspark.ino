@@ -215,6 +215,25 @@ void set (char* state) {
   }
 }
 
+void cycle (int rounds) {
+  for (int i = 0; i < rounds; i++) {
+    set("000000");
+    delay(100);
+    set("100000");
+    delay(100);
+    set("010000");
+    delay(100);
+    set("001000");
+    delay(100);
+    set("000100");
+    delay(100);
+    set("000010");
+    delay(100);
+    set("000001");
+    delay(100);
+  }
+}
+
 
 /***********************
  * MESSAGE PARSING
@@ -284,6 +303,11 @@ void processBuffer(char *message) {
     Serial.println("Off");
     char *state = "000000";
     set(state);
+  }
+
+  else if (strcmp(command, "cycle") == 0) {
+    Serial.println("Cycle");
+    cycle(5);
   }
 
   else if (strcmp(command, "getStatus") == 0) {
@@ -387,7 +411,7 @@ void connectToServer() {
   Serial1.print("set ip remote ");
   Serial1.println(port);
   delay(500);
-  Serial1.println("set sys autoconn 1");
+  Serial1.println("set sys autoconn 10");
   delay(500);
   Serial1.println("open");
   delay(500);

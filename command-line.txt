@@ -1,11 +1,11 @@
 # First set fuses and check that ICSP programming is working
-avrdude -P usb -c avrispmkII -p m328p -v -U lfuse:w:0xff:m -U hfuse:w:0xd1:m -U efuse:w:0xfe:m
+avrdude -P usb -c avrispmkII -p m328p -v -U lfuse:w:0xff:m -U hfuse:w:0xd9:m -U efuse:w:0xfe:m
 
 # Do the LED test
-avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build7134494296395162702.tmp/led.cpp.hex 
+avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build7881327473570929513.tmp/led.cpp.hex
 
 # Then do button and LED test
-avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build3614897434402496328.tmp/btn_and_led.cpp.hex 
+avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build7881327473570929513.tmp/btn_and_led.cpp.hex
 
 # Then do debugSerial test
 avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build505430951342243946.tmp/debug_serial.cpp.hex 
@@ -23,7 +23,7 @@ avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8
 avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build4691832319346119400.tmp/dimmer.cpp.hex 
 
 # Then install the software!
-avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build4691832319346119400.tmp/spark_proto3.cpp.hex 
+avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build7881327473570929513.tmp/spark_proto3.cpp.hex 
 
 avrdude -P usb -c avrispmkII -p m328p -v -U lfuse:w:0xff:m -U hfuse:w:0xd1:m -U efuse:w:0xfe:m
 
