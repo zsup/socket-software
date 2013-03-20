@@ -80,7 +80,7 @@ char pword[PWORD_LENGTH] = "";          // TODO: Right number of characters?
 int auth = 0;
 boolean hasInfo = 0;
 
-char server[] = "23.21.169.6";
+char server[] = "54.235.79.249";
 int port = 1307;
 char ntp_server[] = "nist1-la.ustiming.org";
 
