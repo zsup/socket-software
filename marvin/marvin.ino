@@ -6,7 +6,7 @@
 // Works with Marvin-HAXLR8R+60 (hacked party ball)
 //
 // Orb has the following components:
-//   ATmega32u4 processor (Pro Micro 3.3v/8Mhz bootloader)
+//   Arduino Uno
 //   Roving Networks RN-171 Wi-Fi module
 //   ATtiny pins controlling R, G, & B LEDs jumped to ATmega
 //
@@ -93,7 +93,6 @@ Fader fader;
 void setup()
 {
   Serial.begin(BAUD);
-  Serial1.begin(BAUD);
 
   pinMode(RED, OUTPUT);
   pinMode(GREEN, OUTPUT);
@@ -144,25 +143,6 @@ void setup()
 
 void loop()
 {
-  if ( Serial1.available() )
-  {
-    char c = Serial1.read();
-    Serial.print(c);
-
-    // if you get a newline, clear the line and process the command:
-    if (c == '\n') {
-      processBuffer(bufferString);
-      clearBuffer(bufferString);
-      clearBuffer(recipient);
-      clearBuffer(command);
-      bufPos = 0;
-    }
-    // add the incoming bytes to the end of line:
-    else {
-      bufferString[bufPos] = c;
-      bufPos++;
-    }
-  }
   if ( Serial.available() ) {
     char c = Serial.read();
 
@@ -426,78 +406,75 @@ void processBuffer(char *message) {
  ***********************/
 
 void createServer() {
-  Serial.println("Starting server.");
-  Serial1.print("$$$");
+  Serial.print("$$$");
   delay(1000);
-  Serial1.print("set wlan ssid SWITCH_");
-  Serial1.println(deviceID);
+  Serial.print("set wlan ssid SWITCH_");
+  Serial.println(deviceID);
   delay(500);
-  Serial1.println("set wlan channel 1");
+  Serial.println("set wlan channel 1");
   delay(500);
-  Serial1.println("set wlan join 4");
+  Serial.println("set wlan join 4");
   delay(500);
-  Serial1.println("set ip address 169.254.1.1");
+  Serial.println("set ip address 169.254.1.1");
   delay(500);
-  Serial1.println("set ip netmask 255.255.0.0");
+  Serial.println("set ip netmask 255.255.0.0");
   delay(500);
-  Serial1.println("set ip dhcp 0");
+  Serial.println("set ip dhcp 0");
   delay(500);
-  Serial1.println("save");
+  Serial.println("save");
   delay(500);
-  Serial1.println("reboot");
+  Serial.println("reboot");
 }
 
 void connectToServer() {
   // Connect to our server.
-  Serial.println("Attempting to connect");
-  Serial1.print("$$$");
+  Serial.print("$$$");
   delay(1000);
-  Serial1.print("set wlan ssid ");
-  Serial1.println(ssid);
+  Serial.print("set wlan ssid ");
+  Serial.println(ssid);
   delay(500);
-  Serial1.print("set wlan phrase ");
-  Serial1.println(pword);
+  Serial.print("set wlan phrase ");
+  Serial.println(pword);
   delay(500);
-  Serial1.print("set wlan auth ");
-  Serial1.println(auth);
+  Serial.print("set wlan auth ");
+  Serial.println(auth);
   delay(500);
-  Serial1.println("set wlan channel 0");
+  Serial.println("set wlan channel 0");
   delay(500);
-  Serial1.println("set wlan join 1");
+  Serial.println("set wlan join 1");
   delay(500);
-  Serial1.println("set ip dhcp 1");
+  Serial.println("set ip dhcp 1");
   delay(500);
-  Serial1.print("set ip host ");
-  Serial1.println(server);
+  Serial.print("set ip host ");
+  Serial.println(server);
   delay(500);
-  Serial1.print("set ip remote ");
-  Serial1.println(port);
+  Serial.print("set ip remote ");
+  Serial.println(port);
   delay(500);
-  Serial1.println("set sys autoconn 1");
+  Serial.println("set sys autoconn 1");
   delay(500);
-  Serial1.println("open");
+  Serial.println("open");
   delay(500);
-  Serial1.println("save");
+  Serial.println("save");
   delay(500);
-  Serial1.println("reboot");
-  Serial.println("Rebooting.");
+  Serial.println("reboot");
   delay(5000);
   sendStatus();
 }
 
 void sendStatus() {
-  Serial1.println();
-  Serial1.print("{ \"deviceid\" : \"");
-  Serial1.print(deviceID);
-  Serial1.print("\" , \"dimval\" : ");
-  Serial1.print(dimLevel);
-  Serial1.print(" , \"ssid\" : \"");
-  Serial1.print(ssid);
-  Serial1.print("\" , \"pword\" : \"");
-  Serial1.print(pword);
-  Serial1.print("\" , \"auth\" : \"");
-  Serial1.print(auth);
-  Serial1.println("\" }");
+  Serial.println();
+  Serial.print("{ \"deviceid\" : \"");
+  Serial.print(deviceID);
+  Serial.print("\" , \"dimval\" : ");
+  Serial.print(dimLevel);
+  Serial.print(" , \"ssid\" : \"");
+  Serial.print(ssid);
+  Serial.print("\" , \"pword\" : \"");
+  Serial.print(pword);
+  Serial.print("\" , \"auth\" : \"");
+  Serial.print(auth);
+  Serial.println("\" }");
 }
 
 void fixSSID() {
