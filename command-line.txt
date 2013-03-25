@@ -1,5 +1,8 @@
 # First set fuses and check that ICSP programming is working
+# This version has a brown-out detector:
 avrdude -P usb -c avrispmkII -p m328p -v -U lfuse:w:0xff:m -U hfuse:w:0xd9:m -U efuse:w:0xfe:m
+# This version doesn't:
+avrdude -P usb -c avrispmkII -p m328p -v -U lfuse:w:0xff:m -U hfuse:w:0xd9:m -U efuse:w:0xff:m
 
 # Do the LED test
 avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build7881327473570929513.tmp/led.cpp.hex
@@ -14,7 +17,7 @@ avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8
 avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build505430951342243946.tmp/wifi.cpp.hex
 
 # Then test the zero-cross detector
-avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build4691832319346119400.tmp/zero_cross.cpp.hex 
+avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build3970299088606510126.tmp/zero_cross.cpp.hex 
 
 # Then test the TRIAC
 avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build4691832319346119400.tmp/triac.cpp.hex 
@@ -23,7 +26,7 @@ avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8
 avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build4691832319346119400.tmp/dimmer.cpp.hex 
 
 # Then install the software!
-avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build7881327473570929513.tmp/spark_proto3.cpp.hex 
+avrdude -P usb -c avrispmkII -p m328p -v -U flash:w:/var/folders/zy/53c2jtz544n8xk5bf0sw3hx00000gn/T/build3970299088606510126.tmp/spark_v9.cpp.hex  
 
 avrdude -P usb -c avrispmkII -p m328p -v -U lfuse:w:0xff:m -U hfuse:w:0xd1:m -U efuse:w:0xfe:m
 
