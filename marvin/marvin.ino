@@ -1,18 +1,14 @@
-//
-// Arduino code for the Spark Socket Prototype.
-// Written by Zach Supalla for Hex Labs, Inc.
-// Copyright Hex Labs, Inc. 2012
+// Arduino code for the Spark Orb Prototype.
+// Written by Zach Supalla and Zachary Crockett for Hex Labs, Inc.
+// Copyright Hex Labs, Inc. 2013
 // All rights reserved.
 //
-// Works with Prototype #2 (ugly Wi-Fi)
+// Works with Marvin-HAXLR8R+60 (hacked party ball)
 //
-// Socket has the following components:
-//   ATmega32u4 processor (Pro Micro 3.3v/8Mhz bootloader)
+// Orb has the following components:
+//   Arduino Uno
 //   Roving Networks RN-171 Wi-Fi module
-//   TRIAC leading edge dimmer circuit
-//     (based on the InMojo Digital AC Dimmer)
-//   Bias Power 5V DC power supply
-//   A multi-color LED for status
+//   ATtiny pins controlling R, G, & B LEDs jumped to ATmega
 //
 // Available commands:
 //   turnOn: Turns lamp on
@@ -21,27 +17,24 @@
 //   dimX: Dim the light to a certain level between 0 and 255
 //   getStatus: Returns status of device in JSON
 //   fade X Y: Fade to X (0-12) over Y (0-600000) milliseconds
+//   ledRRGGBB: Change LEDs immediately to the given RGB hex value
 //
 // Known issues:
 //   - There's a long delay during boot-up
 //   - After 10 minutes or so, the device starts acting wacky and needs to be rebooted
 //   - The whole 'alternate start-up lighting' thing doesn't really work
 //
-// v0.3
-// 09/12/2012
-
-// TODO:
-// Check the math on the dimmer timing
-// Make a legit Wi-Fi library, or find one.
-// Automatic authentication
-// Automatic reset (if it can't find a good network)
+// v0.4
+// 03/20/2013
 
 // Libraries. Need a timer for dimming with PWM, and EEPROM for saving.
 #include <EEPROM.h>
 #include "TimerOne.h"  // From http://www.arduino.cc/playground/Code/Timer1
 #include "Fader.h"
 
-#define TRIAC          3       // the pin that the TRIAC control is attached to
+#define RED            3       // the pin that the RED LEDs are attached to
+#define GREEN          5       // the pin that the RED LEDs are attached to
+#define BLUE           6       // the pin that the RED LEDs are attached to
 #define INTERRUPT      1       // the pin that the zero-cross is connected to
 #define BAUD           9600    // Serial communication speed
 
@@ -54,6 +47,7 @@
 
 #define DIM_MIN        0
 #define DIM_MAX        255
+#define LED_MAX        255
 
 #define STATUS_ADDR    0
 #define HASINFO_ADDR   2
@@ -71,7 +65,7 @@ volatile int last = 255;          // Variable to store the last lighting status.
 volatile int t = 0; // Our counter for zero cross events
 
 // Device info
-char deviceID[32] = "Astro"; // Unique ID for the device
+char deviceID[32] = "marvin"; // Unique ID for the device
 char deviceType[32] = "Light"; // Devicetype; light
 
 // Network stuff
@@ -99,9 +93,11 @@ Fader fader;
 void setup()
 {
   Serial.begin(BAUD);
-  Serial1.begin(BAUD);
 
-  pinMode(TRIAC, OUTPUT);
+  pinMode(RED, OUTPUT);
+  pinMode(GREEN, OUTPUT);
+  pinMode(BLUE, OUTPUT);
+  set_leds(0, 0, 0);
 
   Timer1.initialize(TIMER_MICROSECONDS);
   attachInterrupt(INTERRUPT, zero_cross, RISING);
@@ -147,25 +143,6 @@ void setup()
 
 void loop()
 {
-  if ( Serial1.available() )
-  {
-    char c = Serial1.read();
-    Serial.print(c);
-
-    // if you get a newline, clear the line and process the command:
-    if (c == '\n') {
-      processBuffer(bufferString);
-      clearBuffer(bufferString);
-      clearBuffer(recipient);
-      clearBuffer(command);
-      bufPos = 0;
-    }
-    // add the incoming bytes to the end of line:
-    else {
-      bufferString[bufPos] = c;
-      bufPos++;
-    }
-  }
   if ( Serial.available() ) {
     char c = Serial.read();
 
@@ -213,23 +190,52 @@ void copy(char c[], char f[], int x, int y) {
   }
 }
 
+/***********************
+* LED FUNCTIONS
+***********************/
+
+void led(char ledval[]) {
+  char bytestr[3];
+  bytestr[2] = '\0';
+
+  strncpy(bytestr, ledval, 2);
+  byte redval = (byte) strtol(bytestr, (char **) NULL, 16);
+
+  strncpy(bytestr, ledval + 2, 2);
+  byte greenval = (byte) strtol(bytestr, (char **) NULL, 16);
+
+  strncpy(bytestr, ledval + 4, 2);
+  byte blueval = (byte) strtol(bytestr, (char **) NULL, 16);
+
+  set_leds(redval, greenval, blueval);
+}
+
+void set_leds(byte red, byte green, byte blue) {
+  analogWrite(RED, LED_MAX - red);
+  analogWrite(GREEN, LED_MAX - green);
+  analogWrite(BLUE, LED_MAX - blue);
+}
 
 /***********************
  * LIGHTING FUNCTIONS
  ***********************/
 
 // Function called when the zero-cross happens.
-// If the light is either on or off, just write high or low to the triac, respectively.
+// If the light is either on or off, just write high or low to the LEDs.
 // If the light should be dimmed, attach the timer.
 void zero_cross() {
   t = 0;
 
   if (dimLevel < DIM_MIN + 10) {
-    digitalWrite(TRIAC, LOW);
+    digitalWrite(RED, LOW);
+    digitalWrite(GREEN, LOW);
+    digitalWrite(BLUE, LOW);
   }
 
   else if (dimLevel > DIM_MAX - 10) {
-    digitalWrite(TRIAC, HIGH);
+    digitalWrite(RED, HIGH);
+    digitalWrite(GREEN, HIGH);
+    digitalWrite(BLUE, HIGH);
   }
 
   else {
@@ -248,9 +254,9 @@ void dim_check() {
   // Check to see if the counter has reached the right point. If it has, trip the TRIAC.
   if ( t >= DIM_MAX - dimLevel ) {
     Timer1.detachInterrupt();
-    digitalWrite(TRIAC, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(TRIAC, LOW);
+    //digitalWrite(TRIAC, HIGH);
+    //delayMicroseconds(10);
+    //digitalWrite(TRIAC, LOW);
   }
 }
 
@@ -341,6 +347,11 @@ void processBuffer(char *message) {
     Serial.println(d);
   }
 
+  else if (strncmp(command, "led", 3) == 0) {
+    led(command+3);
+    Serial.print("Changed LED color");
+  }
+
   else if (strcmp(command, "getStatus") == 0) {
     Serial.println("Returning status.");
     sendStatus();
@@ -395,78 +406,75 @@ void processBuffer(char *message) {
  ***********************/
 
 void createServer() {
-  Serial.println("Starting server.");
-  Serial1.print("$$$");
+  Serial.print("$$$");
   delay(1000);
-  Serial1.print("set wlan ssid SWITCH_");
-  Serial1.println(deviceID);
+  Serial.print("set wlan ssid SWITCH_");
+  Serial.println(deviceID);
   delay(500);
-  Serial1.println("set wlan channel 1");
+  Serial.println("set wlan channel 1");
   delay(500);
-  Serial1.println("set wlan join 4");
+  Serial.println("set wlan join 4");
   delay(500);
-  Serial1.println("set ip address 169.254.1.1");
+  Serial.println("set ip address 169.254.1.1");
   delay(500);
-  Serial1.println("set ip netmask 255.255.0.0");
+  Serial.println("set ip netmask 255.255.0.0");
   delay(500);
-  Serial1.println("set ip dhcp 0");
+  Serial.println("set ip dhcp 0");
   delay(500);
-  Serial1.println("save");
+  Serial.println("save");
   delay(500);
-  Serial1.println("reboot");
+  Serial.println("reboot");
 }
 
 void connectToServer() {
   // Connect to our server.
-  Serial.println("Attempting to connect");
-  Serial1.print("$$$");
+  Serial.print("$$$");
   delay(1000);
-  Serial1.print("set wlan ssid ");
-  Serial1.println(ssid);
+  Serial.print("set wlan ssid ");
+  Serial.println(ssid);
   delay(500);
-  Serial1.print("set wlan phrase ");
-  Serial1.println(pword);
+  Serial.print("set wlan phrase ");
+  Serial.println(pword);
   delay(500);
-  Serial1.print("set wlan auth ");
-  Serial1.println(auth);
+  Serial.print("set wlan auth ");
+  Serial.println(auth);
   delay(500);
-  Serial1.println("set wlan channel 0");
+  Serial.println("set wlan channel 0");
   delay(500);
-  Serial1.println("set wlan join 1");
+  Serial.println("set wlan join 1");
   delay(500);
-  Serial1.println("set ip dhcp 1");
+  Serial.println("set ip dhcp 1");
   delay(500);
-  Serial1.print("set ip host ");
-  Serial1.println(server);
+  Serial.print("set ip host ");
+  Serial.println(server);
   delay(500);
-  Serial1.print("set ip remote ");
-  Serial1.println(port);
+  Serial.print("set ip remote ");
+  Serial.println(port);
   delay(500);
-  Serial1.println("set sys autoconn 1");
+  Serial.println("set sys autoconn 1");
   delay(500);
-  Serial1.println("open");
+  Serial.println("open");
   delay(500);
-  Serial1.println("save");
+  Serial.println("save");
   delay(500);
-  Serial1.println("reboot");
-  Serial.println("Rebooting.");
+  Serial.println("reboot");
   delay(5000);
   sendStatus();
 }
 
 void sendStatus() {
-  Serial1.println();
-  Serial1.print("{ \"deviceid\" : \"");
-  Serial1.print(deviceID);
-  Serial1.print("\" , \"dimval\" : ");
-  Serial1.print(dimLevel);
-  Serial1.print(" , \"ssid\" : \"");
-  Serial1.print(ssid);
-  Serial1.print("\" , \"pword\" : \"");
-  Serial1.print(pword);
-  Serial1.print("\" , \"auth\" : \"");
-  Serial1.print(auth);
-  Serial1.println("\" }");
+  Serial.println();
+  Serial.print("{ \"deviceid\" : \"");
+  Serial.print(deviceID);
+  Serial.print("\" , \"dimval\" : ");
+  Serial.print(dimLevel);
+  Serial.print(" , \"ssid\" : \"");
+  Serial.print(ssid);
+  Serial.print("\" , \"pword\" : \"");
+  Serial.print(pword);
+  Serial.print("\" , \"auth\" : \"");
+  Serial.print(auth);
+  Serial.println("\" }");
 }
 
 void fixSSID() {
